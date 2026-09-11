@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>M1 v4 — Connexion mobile · SIM</title>
+<meta name="viewport" content="width=1440">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..700,0..100,0..1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.451.0/dist/umd/lucide.min.js"></script>
+<style>
+  :root{
+    --brand:#2563EB; --brand-hover:#1D4ED8; --brand-dark:#1E3A8A;
+    --ink-1:#0F172A; --ink-2:#334155; --text-soft:#475569; --text-weak:#94A3B8;
+    --line:#E2E8F0; --line-strong:#CBD5E1; --line-soft:#EEF2F6;
+    --paper:#FBFBF9; --paper-soft:#F5F5F1;
+    --success:#16A34A; --success-bg:#DCFCE7;
+    --warning:#D97706; --warning-bg:#FEF3C7;
+    --danger:#DC2626; --danger-bg:#FEE2E2;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--paper);color:var(--ink-1);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:-.003em}
+  ::selection{background:rgba(37,99,235,.14)}
+
+  .canvas{padding:48px 24px 80px;display:flex;flex-direction:column;align-items:center;gap:32px}
+  .canvas-header{width:100%;max-width:1392px;display:flex;justify-content:space-between;align-items:baseline;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+  .canvas-header h1{margin:0;font-size:12px;font-weight:600;color:var(--text-soft);letter-spacing:.08em;text-transform:uppercase}
+  .canvas-header .meta{font-size:12px;color:var(--text-weak);letter-spacing:.02em}
+  .variants{display:flex;gap:40px;flex-wrap:wrap;justify-content:center;width:100%;max-width:1392px}
+  .variant{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .variant-label{display:flex;align-items:center;gap:10px;font-size:10px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:.16em}
+  .variant-label .dot{width:5px;height:5px;border-radius:1px;background:var(--success)}
+  .variant[data-state="loading"] .dot{background:var(--warning)}
+  .variant[data-state="error"] .dot{background:var(--danger)}
+
+  /* Device */
+  .device{
+    width:390px;height:844px;
+    background:var(--paper);
+    border-top:2px solid var(--brand);
+    border-left:1px solid var(--line);
+    border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+    border-radius:2px;
+    overflow:hidden;
+    position:relative;
+    display:flex;flex-direction:column;
+  }
+
+  /* Statusbar */
+  .statusbar{
+    height:24px;padding:0 16px;
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--paper);
+    color:var(--ink-1);
+    font-size:11px;font-weight:600;
+    font-variant-numeric:tabular-nums;
+    flex-shrink:0;
+  }
+  .statusbar .left{font-family:'JetBrains Mono',monospace}
+  .statusbar .right{display:flex;align-items:center;gap:5px}
+  .statusbar svg{width:11px;height:11px;stroke-width:2;color:var(--ink-1)}
+  .battery{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-family:'JetBrains Mono',monospace}
+
+  /* Screen body */
+  .screen{
+    flex:1;
+    padding:48px 24px 24px;
+    display:flex;flex-direction:column;
+    overflow:hidden;
+  }
+
+  .brand-strip{
+    display:flex;align-items:center;gap:10px;
+    padding-bottom:20px;
+    border-bottom:1px solid var(--line);
+    margin-bottom:36px;
+  }
+  .brand-strip .glyph{
+    font-family:'Fraunces',serif;
+    font-weight:500;font-size:18px;color:var(--ink-1);
+    letter-spacing:-.04em;
+    padding-right:10px;
+    border-right:1px solid var(--line-strong);
+  }
+  .brand-strip .txt{
+    font-size:10px;font-weight:600;color:var(--text-soft);
+    letter-spacing:.14em;text-transform:uppercase;
+  }
+
+  .kicker{
+    font-size:10px;font-weight:600;
+    color:var(--text-soft);
+    letter-spacing:.16em;text-transform:uppercase;
+    display:flex;align-items:center;gap:10px;
+    margin-bottom:12px;
+  }
+  .kicker::before{
+    content:"";display:inline-block;
+    width:20px;height:1px;background:var(--ink-1);
+  }
+  .title{
+    font-family:'Fraunces',serif;
+    font-optical-sizing:auto;
+    font-variation-settings:"SOFT" 30, "WONK" 0;
+    font-size:36px;font-weight:400;
+    letter-spacing:-.03em;line-height:1.05;
+    margin:0 0 8px 0;color:var(--ink-1);
+  }
+  .title .em{font-style:italic}
+  .lede{
+    font-size:14px;color:var(--text-soft);
+    line-height:1.5;margin:0 0 32px;
+    max-width:280px;
+  }
+
+  .field{display:flex;flex-direction:column;gap:8px;margin-bottom:24px}
+  .field label{
+    font-size:10px;font-weight:600;color:var(--text-soft);
+    letter-spacing:.14em;text-transform:uppercase;
+  }
+  .input-wrap{
+    position:relative;
+    display:flex;align-items:center;gap:10px;
+    padding:12px 0;
+    border-bottom:1px solid var(--line-strong);
+    transition:border-color .12s ease;
+  }
+  .input-wrap:focus-within{border-bottom-color:var(--ink-1)}
+  .input-wrap.error{border-bottom-color:var(--danger)}
+  .input-wrap input{
+    flex:1;border:none;background:transparent;outline:none;
+    font:inherit;font-size:17px;font-weight:500;
+    color:var(--ink-1);letter-spacing:-.005em;padding:0;
+  }
+  .input-wrap input:disabled{color:var(--text-weak);cursor:not-allowed}
+  .input-wrap input::placeholder{color:var(--text-weak);font-weight:400}
+  .eye-btn{
+    background:none;border:none;color:var(--text-weak);
+    cursor:pointer;padding:0;
+    display:flex;align-items:center;
+  }
+  .eye-btn svg{width:18px;height:18px;stroke-width:1.75}
+
+  .error-line{
+    display:flex;align-items:center;gap:8px;
+    color:var(--danger);
+    font-size:13px;font-weight:500;
+    padding:12px 0 0;
+    margin-top:-12px;margin-bottom:20px;
+  }
+  .error-line svg{width:14px;height:14px;stroke-width:2;flex-shrink:0}
+
+  .submit-row{margin-top:auto;display:flex;flex-direction:column;gap:14px}
+  .btn{
+    height:52px;padding:0 20px;
+    border-radius:6px;border:1px solid transparent;
+    font:inherit;font-size:15px;font-weight:500;
+    cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;gap:10px;
+    transition:background .12s ease, border-color .12s ease;
+    width:100%;letter-spacing:-.003em;
+  }
+  .btn svg{width:16px;height:16px;stroke-width:1.75}
+  .btn-primary{background:var(--ink-1);color:#fff;border-color:var(--ink-1)}
+  .btn-primary:disabled{opacity:.7;cursor:progress}
+  .spinner{
+    width:16px;height:16px;border-radius:999px;
+    border:1.5px solid rgba(255,255,255,.3);border-top-color:#fff;
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .helper{
+    font-size:12px;color:var(--text-weak);
+    text-align:center;letter-spacing:.02em;
+  }
+
+  .gesture-bar{height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding-bottom:8px}
+  .gesture-bar::before{content:"";width:112px;height:4px;border-radius:999px;background:var(--text-weak);opacity:.4}
+
+</style>
+</head>
+<body>
+  <main class="canvas" data-screen-label="M1v4 Connexion mobile">
+    <header class="canvas-header">
+      <h1>M1 · v4 · Connexion mobile</h1>
+      <span class="meta">Android 390×844 · 3 variantes</span>
+    </header>
+
+    <section class="variants">
+
+      <!-- (a) Normal -->
+      <article class="variant">
+        <div class="variant-label"><span class="dot"></span>État : normal</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">09:41</div>
+            <div class="right">
+              <i data-lucide="signal"></i>
+              <i data-lucide="wifi"></i>
+              <span class="battery"><i data-lucide="battery-medium"></i>82</span>
+            </div>
+          </div>
+          <div class="screen">
+            <div class="brand-strip">
+              <span class="glyph">SIM</span>
+              <span class="txt">Interventions</span>
+            </div>
+            <div class="kicker">Espace technicien</div>
+            <h1 class="title">Bon <span class="em">retour.</span></h1>
+            <p class="lede">Connectez-vous pour retrouver vos interventions du jour.</p>
+
+            <div class="field">
+              <label>Identifiant</label>
+              <div class="input-wrap">
+                <input type="text" value="koffi.nguessan" autocomplete="off">
+              </div>
+            </div>
+            <div class="field">
+              <label>Mot de passe</label>
+              <div class="input-wrap">
+                <input type="password" value="••••••••••">
+                <button class="eye-btn" type="button"><i data-lucide="eye"></i></button>
+              </div>
+            </div>
+
+            <div class="submit-row">
+              <button class="btn btn-primary" type="button">Se connecter <i data-lucide="arrow-right"></i></button>
+              <div class="helper">Utilisez vos identifiants professionnels</div>
+            </div>
+          </div>
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+      <!-- (b) Envoi en cours -->
+      <article class="variant" data-state="loading">
+        <div class="variant-label"><span class="dot"></span>État : envoi en cours</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">09:41</div>
+            <div class="right"><i data-lucide="signal"></i><i data-lucide="wifi"></i><span class="battery"><i data-lucide="battery-medium"></i>82</span></div>
+          </div>
+          <div class="screen">
+            <div class="brand-strip"><span class="glyph">SIM</span><span class="txt">Interventions</span></div>
+            <div class="kicker">Espace technicien</div>
+            <h1 class="title">Bon <span class="em">retour.</span></h1>
+            <p class="lede">Connectez-vous pour retrouver vos interventions du jour.</p>
+
+            <div class="field">
+              <label>Identifiant</label>
+              <div class="input-wrap"><input type="text" value="koffi.nguessan" disabled></div>
+            </div>
+            <div class="field">
+              <label>Mot de passe</label>
+              <div class="input-wrap">
+                <input type="password" value="••••••••••" disabled>
+                <button class="eye-btn" disabled><i data-lucide="eye"></i></button>
+              </div>
+            </div>
+
+            <div class="submit-row">
+              <button class="btn btn-primary" disabled aria-busy="true"><span class="spinner"></span>Vérification en cours…</button>
+              <div class="helper">Connexion sécurisée en cours</div>
+            </div>
+          </div>
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+      <!-- (c) Erreur -->
+      <article class="variant" data-state="error">
+        <div class="variant-label"><span class="dot"></span>État : erreur</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">09:41</div>
+            <div class="right"><i data-lucide="signal"></i><i data-lucide="wifi-off"></i><span class="battery"><i data-lucide="battery-medium"></i>82</span></div>
+          </div>
+          <div class="screen">
+            <div class="brand-strip"><span class="glyph">SIM</span><span class="txt">Interventions</span></div>
+            <div class="kicker">Espace technicien</div>
+            <h1 class="title">Bon <span class="em">retour.</span></h1>
+            <p class="lede">Connectez-vous pour retrouver vos interventions du jour.</p>
+
+            <div class="field">
+              <label>Identifiant</label>
+              <div class="input-wrap error"><input type="text" value="koffi.nguessan"></div>
+            </div>
+            <div class="field">
+              <label>Mot de passe</label>
+              <div class="input-wrap error">
+                <input type="password" value="••••">
+                <button class="eye-btn"><i data-lucide="eye"></i></button>
+              </div>
+            </div>
+            <div class="error-line" role="alert">
+              <i data-lucide="alert-circle"></i>
+              Identifiant ou mot de passe incorrect
+            </div>
+
+            <div class="submit-row">
+              <button class="btn btn-primary">Se connecter <i data-lucide="arrow-right"></i></button>
+              <div class="helper">Vérifiez vos identifiants et réessayez</div>
+            </div>
+          </div>
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+    </section>
+  </main>
+<script>if (window.lucide) window.lucide.createIcons();</script>
+</body>
+</html>

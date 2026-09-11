@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>M4 v4 — Compléter l'intervention · SIM</title>
+<meta name="viewport" content="width=1440">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..700,0..100,0..1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.451.0/dist/umd/lucide.min.js"></script>
+<style>
+  :root{
+    --brand:#2563EB; --ink-1:#0F172A; --ink-2:#334155; --text-soft:#475569; --text-weak:#94A3B8;
+    --line:#E2E8F0; --line-strong:#CBD5E1; --line-soft:#EEF2F6;
+    --paper:#FBFBF9; --paper-soft:#F5F5F1;
+    --success:#16A34A; --success-bg:#DCFCE7;
+    --warning:#D97706; --warning-bg:#FEF3C7;
+    --danger:#DC2626; --danger-bg:#FEE2E2;
+    --info:#0891B2; --info-bg:#CFFAFE;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--paper);color:var(--ink-1);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:-.003em}
+
+  .canvas{padding:48px 24px 80px;display:flex;flex-direction:column;align-items:center;gap:32px}
+  .canvas-header{width:100%;max-width:1720px;display:flex;justify-content:space-between;align-items:baseline;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+  .canvas-header h1{margin:0;font-size:12px;font-weight:600;color:var(--text-soft);letter-spacing:.08em;text-transform:uppercase}
+  .canvas-header .meta{font-size:12px;color:var(--text-weak);letter-spacing:.02em}
+  .variants{display:flex;gap:32px;flex-wrap:wrap;justify-content:center;width:100%;max-width:1720px}
+  .variant{display:flex;flex-direction:column;align-items:center;gap:12px;max-width:390px}
+  .variant-label{display:flex;align-items:center;gap:10px;font-size:10px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:.16em;text-align:center}
+  .variant-label .dot{width:5px;height:5px;border-radius:1px;background:var(--text-weak)}
+  .variant[data-state="filled"] .dot{background:var(--warning)}
+  .variant[data-state="closed"] .dot{background:var(--success)}
+  .variant[data-state="modal"] .dot{background:var(--brand)}
+
+  .device{width:390px;height:844px;background:var(--paper);border-top:2px solid var(--brand);border-left:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:2px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .statusbar{height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;background:var(--paper);color:var(--ink-1);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;flex-shrink:0}
+  .statusbar .left{font-family:'JetBrains Mono',monospace}
+  .statusbar .right{display:flex;align-items:center;gap:5px}
+  .statusbar svg{width:11px;height:11px;stroke-width:2;color:var(--ink-1)}
+  .battery{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-family:'JetBrains Mono',monospace}
+
+  /* Appbar */
+  .appbar{
+    padding:12px 8px 12px;
+    display:flex;align-items:center;gap:2px;flex-shrink:0;
+    border-bottom:1px solid var(--line);
+  }
+  .back-btn{
+    width:36px;height:36px;border-radius:6px;background:transparent;border:none;color:var(--ink-1);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;
+  }
+  .back-btn:hover{background:var(--line-soft)}
+  .back-btn svg{width:20px;height:20px;stroke-width:1.75}
+  .appbar-mid{flex:1;padding-left:4px;display:flex;flex-direction:column;gap:1px}
+  .appbar-title{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--ink-1);letter-spacing:.02em}
+  .appbar-title .hash{color:var(--text-weak)}
+  .autosave{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:10px;font-weight:500;color:var(--text-weak);letter-spacing:.04em;
+  }
+  .autosave svg{width:10px;height:10px;stroke-width:2;color:var(--success)}
+  .autosave.warn svg{color:var(--warning)}
+
+  /* Success banner */
+  .success-banner{
+    display:flex;align-items:center;gap:10px;
+    padding:14px 16px;
+    background:var(--success-bg);
+    border-bottom:1px solid rgba(22,163,74,.15);
+    color:var(--success);
+    font-size:12px;font-weight:600;letter-spacing:.01em;
+    flex-shrink:0;
+  }
+  .success-banner svg{width:14px;height:14px;stroke-width:2;flex-shrink:0}
+  .success-banner .info{display:flex;flex-direction:column;gap:2px}
+  .success-banner .info strong{font-weight:600;font-size:12px}
+  .success-banner .info .sub{font-size:10px;font-weight:500;opacity:.9;letter-spacing:.04em;text-transform:uppercase}
+
+  /* Screen */
+  .screen{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .scroll{flex:1;overflow-y:auto;padding:20px 16px 16px;display:flex;flex-direction:column;gap:24px}
+
+  .head-block{padding-bottom:14px;border-bottom:1px solid var(--ink-1)}
+  .head-block .kicker{font-size:10px;font-weight:600;color:var(--text-soft);letter-spacing:.16em;text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .head-block .kicker::before{content:"";display:inline-block;width:16px;height:1px;background:var(--ink-1)}
+  .head-block h1{
+    font-family:'Fraunces',serif;
+    font-optical-sizing:auto;font-variation-settings:"SOFT" 30, "WONK" 0;
+    font-size:28px;font-weight:400;letter-spacing:-.03em;line-height:1.05;
+    margin:0;color:var(--ink-1);
+  }
+  .head-block h1 .em{font-style:italic}
+
+  /* Field */
+  .field{display:flex;flex-direction:column;gap:8px}
+  .field .lab{
+    display:flex;align-items:center;justify-content:space-between;
+    font-size:10px;font-weight:600;color:var(--text-soft);
+    letter-spacing:.16em;text-transform:uppercase;
+  }
+  .field .lab .req{color:var(--danger)}
+  .field .lab .count{font-family:'JetBrains Mono',monospace;color:var(--text-weak);font-size:10px;font-weight:500;letter-spacing:.02em;text-transform:none}
+
+  .textarea-wrap{
+    border-bottom:1px solid var(--line-strong);
+    padding:8px 0;
+    transition:border-color .12s ease;
+  }
+  .textarea-wrap:focus-within{border-bottom-color:var(--ink-1)}
+  .textarea-wrap textarea{
+    width:100%;
+    min-height:100px;
+    border:none;background:transparent;outline:none;resize:none;
+    font:inherit;font-size:16px;font-weight:500;
+    color:var(--ink-1);line-height:1.5;letter-spacing:-.005em;padding:0;
+    font-family:inherit;
+  }
+  .textarea-wrap textarea::placeholder{color:var(--text-weak);font-weight:400;font-style:italic}
+  .textarea-wrap.readonly{
+    border-bottom-color:var(--line);
+    background:var(--paper-soft);
+    padding:12px;
+    border-radius:2px;
+  }
+  .textarea-wrap.readonly textarea{color:var(--ink-1)}
+
+  /* Photos */
+  .photos-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .photo-thumb{
+    position:relative;
+    width:88px;height:88px;
+    border:1px solid var(--line);overflow:hidden;
+    background:var(--paper-soft);flex-shrink:0;
+    border-radius:2px;
+  }
+  .photo-thumb .fill{
+    position:absolute;inset:0;
+    background:repeating-linear-gradient(45deg, #E8E8E3 0 8px, #EFEFEA 8px 16px);
+    display:flex;align-items:center;justify-content:center;color:var(--text-weak);
+  }
+  .photo-thumb .fill svg{width:20px;height:20px;stroke-width:1.5}
+  .photo-thumb .tag{position:absolute;left:5px;bottom:5px;background:var(--ink-1);color:#fff;padding:2px 5px;border-radius:2px;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:500;letter-spacing:.06em}
+  .photo-thumb .remove{
+    position:absolute;top:4px;right:4px;
+    width:20px;height:20px;border-radius:999px;
+    background:rgba(15,23,42,.9);color:#fff;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;
+  }
+  .photo-thumb .remove svg{width:10px;height:10px;stroke-width:2.4}
+  .add-photo{
+    width:88px;height:88px;
+    border:1px dashed var(--line-strong);
+    background:transparent;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    color:var(--text-soft);
+    font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+    cursor:pointer;flex-shrink:0;border-radius:2px;
+    transition:border-color .12s ease, color .12s ease, background .12s ease;
+  }
+  .add-photo:hover{border-color:var(--ink-1);color:var(--ink-1);background:var(--line-soft)}
+  .add-photo svg{width:20px;height:20px;stroke-width:1.5}
+
+  /* Bottom bar */
+  .bottom-bar{
+    padding:12px 16px 16px;
+    background:var(--paper);
+    border-top:1px solid var(--line);
+    flex-shrink:0;
+    display:flex;flex-direction:column;gap:8px;
+  }
+  .btn{
+    height:52px;padding:0 20px;border-radius:6px;
+    border:1px solid transparent;
+    font:inherit;font-size:15px;font-weight:500;
+    cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;gap:10px;
+    transition:background .12s ease;
+    width:100%;letter-spacing:-.003em;
+  }
+  .btn svg{width:16px;height:16px;stroke-width:1.75}
+  .btn-primary{background:var(--ink-1);color:#fff;border-color:var(--ink-1)}
+  .btn-primary:disabled{background:var(--text-weak);color:#fff;border-color:var(--text-weak);cursor:not-allowed;opacity:.9}
+  .btn-secondary{background:transparent;border-color:var(--line);color:var(--ink-1)}
+  .btn-ghost{background:transparent;color:var(--text-soft)}
+  .btn-ghost:hover{background:var(--line-soft);color:var(--ink-1)}
+  .help-hint{
+    text-align:center;font-size:11px;color:var(--text-weak);letter-spacing:.02em;font-weight:500;
+  }
+
+  /* Modal (bottom sheet éditorial) */
+  .modal-overlay{
+    position:absolute;inset:0;
+    background:rgba(15,23,42,.55);
+    display:flex;align-items:flex-end;justify-content:center;
+    padding:0;z-index:5;
+    backdrop-filter:blur(2px);
+  }
+  .modal{
+    width:100%;
+    background:var(--paper);
+    border-top:2px solid var(--ink-1);
+    padding:24px 20px 24px;
+    display:flex;flex-direction:column;gap:10px;
+    box-shadow:0 -20px 40px rgba(0,0,0,.15);
+  }
+  .modal .kicker{font-size:10px;font-weight:600;color:var(--text-soft);letter-spacing:.16em;text-transform:uppercase;display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  .modal .kicker::before{content:"";display:inline-block;width:16px;height:1px;background:var(--ink-1)}
+  .modal h3{
+    font-family:'Fraunces',serif;
+    font-size:22px;font-weight:400;letter-spacing:-.025em;line-height:1.15;
+    color:var(--ink-1);margin:0;
+  }
+  .modal h3 .em{font-style:italic}
+  .modal p{margin:0;font-size:13px;color:var(--text-soft);line-height:1.55}
+  .modal .actions{display:flex;gap:10px;margin-top:14px}
+  .modal .actions .btn{width:auto;flex:1;height:48px}
+  .modal .handle{
+    width:36px;height:3px;
+    background:var(--line-strong);border-radius:999px;
+    margin:-8px auto 12px;
+  }
+
+  .gesture-bar{height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding-bottom:8px}
+  .gesture-bar::before{content:"";width:112px;height:4px;border-radius:999px;background:var(--text-weak);opacity:.4}
+</style>
+</head>
+<body>
+  <main class="canvas" data-screen-label="M4v4 Completer intervention">
+    <header class="canvas-header">
+      <h1>M4 · v4 · Compléter l'intervention</h1>
+      <span class="meta">Android 390×844 · 4 cadres</span>
+    </header>
+
+    <section class="variants">
+
+      <!-- (a) Vides -->
+      <article class="variant">
+        <div class="variant-label"><span class="dot"></span>État : vides · bouton désactivé</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">09:41</div>
+            <div class="right"><i data-lucide="signal"></i><i data-lucide="wifi"></i><span class="battery"><i data-lucide="battery-medium"></i>82</span></div>
+          </div>
+          <div class="appbar">
+            <button class="back-btn"><i data-lucide="arrow-left"></i></button>
+            <div class="appbar-mid">
+              <div class="appbar-title"><span class="hash">#</span>0142 · Compléter</div>
+              <div class="autosave"><i data-lucide="cloud"></i>Enregistrement automatique</div>
+            </div>
+          </div>
+          <div class="screen">
+            <div class="scroll">
+              <div class="head-block">
+                <div class="kicker">Rendez-vous · 14/09/2026 · 09:00</div>
+                <h1>Hôtel <span class="em">Ivoire</span></h1>
+              </div>
+
+              <div class="field">
+                <div class="lab">Problème constaté <span class="req">*</span></div>
+                <div class="textarea-wrap">
+                  <textarea placeholder="Décrivez le problème constaté sur place…"></textarea>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="lab">Travaux réalisés <span class="req">*</span></div>
+                <div class="textarea-wrap">
+                  <textarea placeholder="Décrivez les travaux effectués…"></textarea>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="lab">Photos avant <span class="count">0 / 2</span></div>
+                <div class="photos-row">
+                  <button class="add-photo"><i data-lucide="camera"></i>Ajouter</button>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="lab">Photos après <span class="count">0 / 2</span></div>
+                <div class="photos-row">
+                  <button class="add-photo"><i data-lucide="camera"></i>Ajouter</button>
+                </div>
+              </div>
+
+            </div>
+            <div class="bottom-bar">
+              <button class="btn btn-primary" disabled>Clôturer</button>
+              <div class="help-hint">Renseignez le problème et les travaux pour clôturer</div>
+            </div>
+          </div>
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+      <!-- (b) Rempli -->
+      <article class="variant" data-state="filled">
+        <div class="variant-label"><span class="dot"></span>État : rempli · bouton actif</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">15:22</div>
+            <div class="right"><i data-lucide="signal"></i><i data-lucide="wifi-off"></i><span class="battery"><i data-lucide="battery-medium"></i>76</span></div>
+          </div>
+          <div class="appbar">
+            <button class="back-btn"><i data-lucide="arrow-left"></i></button>
+            <div class="appbar-mid">
+              <div class="appbar-title"><span class="hash">#</span>0142 · Compléter</div>
+              <div class="autosave"><i data-lucide="check"></i>Enregistré à l'instant</div>
+            </div>
+          </div>
+          <div class="screen">
+            <div class="scroll">
+              <div class="head-block">
+                <div class="kicker">Rendez-vous · 14/09/2026 · 09:00</div>
+                <h1>Hôtel <span class="em">Ivoire</span></h1>
+              </div>
+
+              <div class="field">
+                <div class="lab">Problème constaté <span class="req">*</span></div>
+                <div class="textarea-wrap">
+                  <textarea>Climatiseur split de la suite 302 hors service. Compresseur en surchauffe, arrêt automatique. Filtre encrassé, gaz faible.</textarea>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="lab">Travaux réalisés <span class="req">*</span></div>
+                <div class="textarea-wrap">
+                  <textarea>Nettoyage complet du filtre et de l'unité extérieure. Recharge en gaz R410A (350 g). Test 30 min : sortie 14 °C, aucun bruit.</textarea>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="lab">Photos avant <span class="count">2 / 2</span></div>
+                <div class="photos-row">
+                  <div class="photo-thumb"><div class="fill"><i data-lucide="image"></i></div><span class="tag">AVANT · 01</span><button class="remove"><i data-lucide="x"></i></button></div>
+                  <div class="photo-thumb"><div class="fill"><i data-lucide="image"></i></div><span class="tag">AVANT · 02</span><button class="remove"><i data-lucide="x"></i></button></div>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="lab">Photos après <span class="count">1 / 2</span></div>
+                <div class="photos-row">
+                  <div class="photo-thumb"><div class="fill"><i data-lucide="image"></i></div><span class="tag">APRES · 01</span><button class="remove"><i data-lucide="x"></i></button></div>
+                  <button class="add-photo"><i data-lucide="camera"></i>Ajouter</button>
+                </div>
+              </div>
+
+            </div>
+            <div class="bottom-bar">
+              <button class="btn btn-primary">Clôturer <i data-lucide="arrow-right"></i></button>
+            </div>
+          </div>
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+      <!-- (c) Clôturé -->
+      <article class="variant" data-state="closed">
+        <div class="variant-label"><span class="dot"></span>État : clôturé · lecture seule</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">15:35</div>
+            <div class="right"><i data-lucide="signal"></i><i data-lucide="wifi"></i><span class="battery"><i data-lucide="battery-medium"></i>74</span></div>
+          </div>
+          <div class="appbar">
+            <button class="back-btn"><i data-lucide="arrow-left"></i></button>
+            <div class="appbar-mid">
+              <div class="appbar-title"><span class="hash">#</span>0142 · Compte rendu</div>
+            </div>
+          </div>
+          <div class="success-banner">
+            <i data-lucide="check-circle-2"></i>
+            <div class="info">
+              <strong>Réalisée le 12/09/2026 · 15:30</strong>
+              <span class="sub">Synchronisée</span>
+            </div>
+          </div>
+          <div class="screen">
+            <div class="scroll">
+              <div class="head-block">
+                <div class="kicker">Rendez-vous · 14/09/2026 · 09:00</div>
+                <h1>Hôtel <span class="em">Ivoire</span></h1>
+              </div>
+
+              <div class="field">
+                <div class="lab">Problème constaté</div>
+                <div class="textarea-wrap readonly">
+                  <textarea readonly>Climatiseur split de la suite 302 hors service. Compresseur en surchauffe, arrêt automatique. Filtre encrassé, gaz faible.</textarea>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="lab">Travaux réalisés</div>
+                <div class="textarea-wrap readonly">
+                  <textarea readonly>Nettoyage complet du filtre et de l'unité extérieure. Recharge en gaz R410A (350 g). Test 30 min : sortie 14 °C, aucun bruit.</textarea>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="lab">Photos avant <span class="count">2 / 2</span></div>
+                <div class="photos-row">
+                  <div class="photo-thumb"><div class="fill"><i data-lucide="image"></i></div><span class="tag">AVANT · 01</span></div>
+                  <div class="photo-thumb"><div class="fill"><i data-lucide="image"></i></div><span class="tag">AVANT · 02</span></div>
+                </div>
+              </div>
+
+              <div class="field">
+                <div class="lab">Photos après <span class="count">2 / 2</span></div>
+                <div class="photos-row">
+                  <div class="photo-thumb"><div class="fill"><i data-lucide="image"></i></div><span class="tag">APRES · 01</span></div>
+                  <div class="photo-thumb"><div class="fill"><i data-lucide="image"></i></div><span class="tag">APRES · 02</span></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+      <!-- (d) Modale -->
+      <article class="variant" data-state="modal">
+        <div class="variant-label"><span class="dot"></span>Modale : confirmation de clôture</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">15:22</div>
+            <div class="right"><i data-lucide="signal"></i><i data-lucide="wifi-off"></i><span class="battery"><i data-lucide="battery-medium"></i>76</span></div>
+          </div>
+          <div class="appbar">
+            <button class="back-btn"><i data-lucide="arrow-left"></i></button>
+            <div class="appbar-mid">
+              <div class="appbar-title"><span class="hash">#</span>0142 · Compléter</div>
+              <div class="autosave"><i data-lucide="check"></i>Enregistré à l'instant</div>
+            </div>
+          </div>
+          <div class="screen">
+            <div class="scroll">
+              <div class="head-block">
+                <div class="kicker">Rendez-vous · 14/09/2026 · 09:00</div>
+                <h1>Hôtel <span class="em">Ivoire</span></h1>
+              </div>
+              <div class="field">
+                <div class="lab">Problème constaté <span class="req">*</span></div>
+                <div class="textarea-wrap">
+                  <textarea>Climatiseur split de la suite 302 hors service. Compresseur en surchauffe, arrêt automatique. Filtre encrassé, gaz faible.</textarea>
+                </div>
+              </div>
+              <div class="field">
+                <div class="lab">Travaux réalisés <span class="req">*</span></div>
+                <div class="textarea-wrap">
+                  <textarea>Nettoyage complet du filtre et de l'unité extérieure. Recharge en gaz R410A (350 g). Test 30 min : sortie 14 °C, aucun bruit.</textarea>
+                </div>
+              </div>
+            </div>
+            <div class="bottom-bar">
+              <button class="btn btn-primary">Clôturer <i data-lucide="arrow-right"></i></button>
+            </div>
+          </div>
+
+          <div class="modal-overlay" role="dialog" aria-modal="true">
+            <div class="modal">
+              <div class="handle"></div>
+              <div class="kicker">Action définitive</div>
+              <h3>Clôturer cette <span class="em">intervention</span> ?</h3>
+              <p>Vous ne pourrez plus la modifier après clôture. Assurez-vous que le compte rendu et les photos sont complets.</p>
+              <div class="actions">
+                <button class="btn btn-ghost">Retour</button>
+                <button class="btn btn-primary">Clôturer</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+    </section>
+  </main>
+<script>if (window.lucide) window.lucide.createIcons();</script>
+</body>
+</html>

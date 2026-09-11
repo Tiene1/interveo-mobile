@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>M2 v4 — Mes interventions · SIM</title>
+<meta name="viewport" content="width=1440">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..700,0..100,0..1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.451.0/dist/umd/lucide.min.js"></script>
+<style>
+  :root{
+    --brand:#2563EB; --brand-hover:#1D4ED8; --brand-dark:#1E3A8A;
+    --ink-1:#0F172A; --ink-2:#334155; --text-soft:#475569; --text-weak:#94A3B8;
+    --line:#E2E8F0; --line-strong:#CBD5E1; --line-soft:#EEF2F6;
+    --paper:#FBFBF9; --paper-soft:#F5F5F1;
+    --success:#16A34A; --success-bg:#DCFCE7;
+    --warning:#D97706; --warning-bg:#FEF3C7;
+    --danger:#DC2626; --danger-bg:#FEE2E2;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--paper);color:var(--ink-1);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:-.003em}
+
+  .canvas{padding:48px 24px 80px;display:flex;flex-direction:column;align-items:center;gap:32px}
+  .canvas-header{width:100%;max-width:1392px;display:flex;justify-content:space-between;align-items:baseline;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+  .canvas-header h1{margin:0;font-size:12px;font-weight:600;color:var(--text-soft);letter-spacing:.08em;text-transform:uppercase}
+  .canvas-header .meta{font-size:12px;color:var(--text-weak);letter-spacing:.02em}
+  .variants{display:flex;gap:32px;flex-wrap:wrap;justify-content:center;width:100%;max-width:1720px}
+  .variant{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .variant-label{display:flex;align-items:center;gap:10px;font-size:10px;font-weight:600;color:var(--text-soft);text-transform:uppercase;letter-spacing:.16em}
+  .variant-label .dot{width:5px;height:5px;border-radius:1px;background:var(--success)}
+  .variant[data-state="loading"] .dot{background:var(--warning)}
+  .variant[data-state="empty"] .dot{background:var(--text-weak)}
+  .variant[data-state="offline"] .dot{background:var(--warning)}
+
+  .device{width:390px;height:844px;background:var(--paper);border-top:2px solid var(--brand);border-left:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:2px;overflow:hidden;position:relative;display:flex;flex-direction:column}
+  .statusbar{height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;background:var(--paper);color:var(--ink-1);font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;flex-shrink:0}
+  .statusbar .left{font-family:'JetBrains Mono',monospace}
+  .statusbar .right{display:flex;align-items:center;gap:5px}
+  .statusbar svg{width:11px;height:11px;stroke-width:2;color:var(--ink-1)}
+  .battery{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-family:'JetBrains Mono',monospace}
+
+  /* Header */
+  .app-head{
+    padding:20px 16px 12px;
+    display:flex;justify-content:space-between;align-items:flex-start;
+    gap:12px;
+    flex-shrink:0;
+  }
+  .app-head .left{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+  .app-head .kicker{
+    font-size:9px;font-weight:600;color:var(--text-weak);
+    letter-spacing:.16em;text-transform:uppercase;
+    display:flex;align-items:center;gap:8px;margin-bottom:6px;
+  }
+  .app-head .kicker::before{content:"";display:inline-block;width:16px;height:1px;background:var(--ink-1)}
+  .app-head h1{
+    font-family:'Fraunces',serif;
+    font-optical-sizing:auto;font-variation-settings:"SOFT" 30, "WONK" 0;
+    font-size:28px;font-weight:400;letter-spacing:-.03em;line-height:1.05;
+    margin:0;color:var(--ink-1);
+  }
+  .app-head h1 .em{font-style:italic}
+  .app-head .sync-btn{
+    width:36px;height:36px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--text-soft);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;position:relative;transition:background .12s ease;
+  }
+  .app-head .sync-btn:hover{background:var(--line-soft);color:var(--ink-1)}
+  .app-head .sync-btn svg{width:16px;height:16px;stroke-width:1.75}
+  .app-head .sync-btn .indicator{
+    position:absolute;top:-2px;right:-2px;
+    width:8px;height:8px;border-radius:999px;
+    background:var(--success);border:2px solid var(--paper);
+  }
+  .app-head .sync-btn .indicator.warn{background:var(--warning)}
+  .app-head .sync-btn .indicator.err{background:var(--danger)}
+
+  /* Sync meta */
+  .sync-meta{
+    padding:0 16px 12px;
+    font-size:11px;color:var(--text-weak);
+    letter-spacing:.02em;
+    display:flex;align-items:center;gap:8px;
+    flex-shrink:0;
+  }
+  .sync-meta strong{color:var(--text-soft);font-weight:500}
+  .sync-meta .dot{width:3px;height:3px;border-radius:999px;background:var(--text-weak);opacity:.5}
+
+  /* Filter tabs */
+  .tabs{
+    padding:8px 16px 0;
+    display:flex;align-items:center;gap:16px;
+    border-bottom:1px solid var(--line);
+    flex-shrink:0;
+  }
+  .tab{
+    padding:8px 0 12px;
+    font-size:13px;font-weight:500;
+    color:var(--text-weak);cursor:pointer;
+    border-bottom:1px solid transparent;
+    margin-bottom:-1px;
+    letter-spacing:-.003em;
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .tab .count{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;color:var(--text-weak);font-weight:500;
+  }
+  .tab.active{color:var(--ink-1);border-bottom-color:var(--ink-1);font-weight:600}
+  .tab.active .count{color:var(--ink-1)}
+
+  /* Offline banner */
+  .offline-banner{
+    display:flex;align-items:center;gap:10px;
+    padding:12px 16px;
+    background:var(--warning-bg);
+    border-bottom:1px solid rgba(217,119,6,.15);
+    color:var(--warning);
+    font-size:12px;font-weight:500;
+    flex-shrink:0;
+    letter-spacing:.01em;
+  }
+  .offline-banner svg{width:14px;height:14px;stroke-width:2;flex-shrink:0}
+
+  /* List */
+  .list{
+    flex:1;
+    overflow-y:auto;
+    padding:8px 0;
+  }
+
+  .tile{
+    display:flex;align-items:flex-start;gap:14px;
+    padding:16px 16px;
+    border-bottom:1px solid var(--line-soft);
+    cursor:pointer;
+    position:relative;
+  }
+  .tile:hover{background:#FCFCFA}
+  .tile .marker{
+    width:3px;
+    align-self:stretch;
+    background:transparent;
+    margin-top:6px;
+    margin-bottom:6px;
+    flex-shrink:0;
+    border-radius:0 2px 2px 0;
+    margin-left:-16px;
+    margin-right:2px;
+  }
+  .tile[data-status="planifiee"] .marker{background:var(--warning)}
+  .tile[data-status="realisee"] .marker{background:var(--success)}
+
+  .tile .body{flex:1;min-width:0}
+  .tile .ref{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10px;font-weight:500;color:var(--text-weak);
+    letter-spacing:.02em;
+    margin-bottom:4px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .tile .ref .sync{
+    display:inline-flex;align-items:center;gap:4px;
+    color:var(--text-weak);
+  }
+  .tile .ref .sync.pending{color:var(--warning)}
+  .tile .ref .sync.pending::before{content:"";display:inline-block;width:5px;height:5px;border-radius:999px;background:var(--warning)}
+  .tile .ref .sync.synced svg{width:10px;height:10px;stroke-width:2.4;color:var(--success)}
+  .tile .name{
+    font-size:15px;font-weight:600;color:var(--ink-1);
+    letter-spacing:-.008em;line-height:1.3;margin-bottom:3px;
+  }
+  .tile .loc{
+    font-size:12px;color:var(--text-soft);line-height:1.35;
+  }
+  .tile .foot{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-top:8px;
+  }
+  .tile .time{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;color:var(--ink-1);font-weight:500;
+    letter-spacing:-.005em;
+  }
+  .tile .time .sep{color:var(--text-weak);margin:0 4px}
+  .tile .time .day{color:var(--text-soft)}
+  .tile .status{
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:12px;font-weight:500;
+    color:var(--ink-1);letter-spacing:-.003em;
+  }
+  .tile .status .d{width:6px;height:6px;border-radius:1.5px}
+  .tile[data-status="planifiee"] .status .d{background:var(--warning)}
+  .tile[data-status="realisee"] .status .d{background:var(--success)}
+
+  /* PTR hint */
+  .ptr-hint{
+    display:flex;align-items:center;justify-content:center;gap:6px;
+    padding:12px 16px 4px;
+    color:var(--text-weak);font-size:11px;font-weight:500;
+    letter-spacing:.04em;text-transform:uppercase;
+  }
+  .ptr-hint svg{width:12px;height:12px;stroke-width:2}
+
+  /* Empty state */
+  .empty{
+    flex:1;
+    display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;
+    padding:60px 24px 24px;gap:12px;
+  }
+  .empty .rule{width:24px;height:1px;background:var(--ink-1);margin-bottom:4px}
+  .empty .kicker{font-size:10px;font-weight:600;color:var(--text-soft);letter-spacing:.16em;text-transform:uppercase}
+  .empty h3{
+    font-family:'Fraunces',serif;font-optical-sizing:auto;font-variation-settings:"SOFT" 30, "WONK" 0;
+    font-size:24px;font-weight:400;letter-spacing:-.025em;line-height:1.15;
+    color:var(--ink-1);margin:0;
+  }
+  .empty h3 .em{font-style:italic}
+  .empty p{margin:0;color:var(--text-soft);font-size:13px;line-height:1.5}
+  .empty .ptr{
+    display:inline-flex;align-items:center;gap:6px;
+    color:var(--text-weak);font-size:12px;font-weight:500;
+    margin-top:12px;
+  }
+  .empty .ptr svg{width:12px;height:12px;stroke-width:2}
+
+  /* Skeleton */
+  .skel{
+    display:inline-block;height:11px;border-radius:3px;
+    background:linear-gradient(90deg,#F1F1EE 0%, #E4E4DE 50%, #F1F1EE 100%);
+    background-size:200% 100%;animation:shimmer 1.4s ease-in-out infinite;
+  }
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  .gesture-bar{height:20px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding-bottom:8px}
+  .gesture-bar::before{content:"";width:112px;height:4px;border-radius:999px;background:var(--text-weak);opacity:.4}
+
+</style>
+</head>
+<body>
+  <main class="canvas" data-screen-label="M2v4 Mes interventions">
+    <header class="canvas-header">
+      <h1>M2 · v4 · Mes interventions</h1>
+      <span class="meta">Android 390×844 · 4 cadres</span>
+    </header>
+
+    <section class="variants">
+
+      <!-- (a) Données -->
+      <article class="variant">
+        <div class="variant-label"><span class="dot"></span>État : données</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">09:41</div>
+            <div class="right"><i data-lucide="signal"></i><i data-lucide="wifi"></i><span class="battery"><i data-lucide="battery-medium"></i>82</span></div>
+          </div>
+          <div class="app-head">
+            <div class="left">
+              <div class="kicker">Sam. 12 sept · 09:41</div>
+              <h1>Mes <span class="em">interventions</span></h1>
+            </div>
+            <button class="sync-btn"><i data-lucide="refresh-cw"></i><span class="indicator"></span></button>
+          </div>
+          <div class="sync-meta">
+            <strong>Koffi N'Guessan</strong>
+            <span class="dot"></span>
+            <span>Synchronisé il y a 5 min</span>
+          </div>
+          <div class="tabs">
+            <div class="tab active">Toutes <span class="count">6</span></div>
+            <div class="tab">Planifiées <span class="count">4</span></div>
+            <div class="tab">Réalisées <span class="count">2</span></div>
+          </div>
+          <div class="list">
+            <div class="ptr-hint"><i data-lucide="arrow-down"></i>Tirez pour synchroniser</div>
+
+            <div class="tile" data-status="planifiee">
+              <div class="marker"></div>
+              <div class="body">
+                <div class="ref"><span>#0142</span><span class="sync synced"><i data-lucide="check"></i>Synchronisée</span></div>
+                <div class="name">Hôtel Ivoire</div>
+                <div class="loc">Boulevard Hassan II, Cocody</div>
+                <div class="foot">
+                  <span class="time"><span class="day">12/09</span><span class="sep">·</span>09:00</span>
+                  <span class="status"><span class="d"></span>Planifiée</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tile" data-status="planifiee">
+              <div class="marker"></div>
+              <div class="body">
+                <div class="ref"><span>#0141</span><span class="sync synced"><i data-lucide="check"></i>Synchronisée</span></div>
+                <div class="name">SGBCI Plateau</div>
+                <div class="loc">Avenue Chardy, Plateau</div>
+                <div class="foot">
+                  <span class="time"><span class="day">12/09</span><span class="sep">·</span>11:30</span>
+                  <span class="status"><span class="d"></span>Planifiée</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tile" data-status="planifiee">
+              <div class="marker"></div>
+              <div class="body">
+                <div class="ref"><span>#0140</span><span class="sync pending">À synchroniser</span></div>
+                <div class="name">Pharmacie Saint Jean</div>
+                <div class="loc">Rue des Jardins, II Plateaux</div>
+                <div class="foot">
+                  <span class="time"><span class="day">12/09</span><span class="sep">·</span>14:00</span>
+                  <span class="status"><span class="d"></span>Planifiée</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tile" data-status="realisee">
+              <div class="marker"></div>
+              <div class="body">
+                <div class="ref"><span>#0139</span><span class="sync pending">À synchroniser</span></div>
+                <div class="name">Résidence Les Palmiers</div>
+                <div class="loc">Zone 4, Marcory</div>
+                <div class="foot">
+                  <span class="time"><span class="day">13/09</span><span class="sep">·</span>08:30</span>
+                  <span class="status"><span class="d"></span>Réalisée</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tile" data-status="planifiee">
+              <div class="marker"></div>
+              <div class="body">
+                <div class="ref"><span>#0138</span><span class="sync synced"><i data-lucide="check"></i>Synchronisée</span></div>
+                <div class="name">Boulangerie La Concorde</div>
+                <div class="loc">Rue des Jardins, II Plateaux</div>
+                <div class="foot">
+                  <span class="time"><span class="day">13/09</span><span class="sep">·</span>15:30</span>
+                  <span class="status"><span class="d"></span>Planifiée</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tile" data-status="realisee">
+              <div class="marker"></div>
+              <div class="body">
+                <div class="ref"><span>#0137</span><span class="sync synced"><i data-lucide="check"></i>Synchronisée</span></div>
+                <div class="name">Hôtel Ivoire</div>
+                <div class="loc">Boulevard Hassan II, Cocody</div>
+                <div class="foot">
+                  <span class="time"><span class="day">14/09</span><span class="sep">·</span>09:00</span>
+                  <span class="status"><span class="d"></span>Réalisée</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+      <!-- (b) Chargement -->
+      <article class="variant" data-state="loading">
+        <div class="variant-label"><span class="dot"></span>État : chargement</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">09:41</div>
+            <div class="right"><i data-lucide="signal"></i><i data-lucide="wifi"></i><span class="battery"><i data-lucide="battery-medium"></i>82</span></div>
+          </div>
+          <div class="app-head">
+            <div class="left">
+              <div class="kicker">Sam. 12 sept · 09:41</div>
+              <h1>Mes <span class="em">interventions</span></h1>
+            </div>
+            <button class="sync-btn"><i data-lucide="refresh-cw"></i><span class="indicator warn"></span></button>
+          </div>
+          <div class="sync-meta"><strong>Koffi N'Guessan</strong><span class="dot"></span><span>Synchronisation en cours…</span></div>
+          <div class="tabs">
+            <div class="tab active">Toutes</div>
+            <div class="tab">Planifiées</div>
+            <div class="tab">Réalisées</div>
+          </div>
+          <div class="list" id="skel-list"></div>
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+      <!-- (c) Vide -->
+      <article class="variant" data-state="empty">
+        <div class="variant-label"><span class="dot"></span>État : liste vide</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">09:41</div>
+            <div class="right"><i data-lucide="signal"></i><i data-lucide="wifi"></i><span class="battery"><i data-lucide="battery-medium"></i>82</span></div>
+          </div>
+          <div class="app-head">
+            <div class="left">
+              <div class="kicker">Sam. 12 sept · 09:41</div>
+              <h1>Mes <span class="em">interventions</span></h1>
+            </div>
+            <button class="sync-btn"><i data-lucide="refresh-cw"></i><span class="indicator"></span></button>
+          </div>
+          <div class="sync-meta"><strong>Koffi N'Guessan</strong><span class="dot"></span><span>Synchronisé il y a 5 min</span></div>
+          <div class="tabs">
+            <div class="tab active">Toutes <span class="count">0</span></div>
+            <div class="tab">Planifiées</div>
+            <div class="tab">Réalisées</div>
+          </div>
+          <div class="empty">
+            <div class="rule"></div>
+            <div class="kicker">Aucune tâche</div>
+            <h3>Aucune intervention <span class="em">attribuée</span>.</h3>
+            <p>Vous n'avez actuellement aucune intervention assignée. Synchronisez pour vérifier les nouvelles attributions.</p>
+            <div class="ptr"><i data-lucide="arrow-down"></i>Tirez vers le bas pour synchroniser</div>
+          </div>
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+      <!-- (d) Hors ligne -->
+      <article class="variant" data-state="offline">
+        <div class="variant-label"><span class="dot"></span>État : hors ligne</div>
+        <div class="device">
+          <div class="statusbar">
+            <div class="left">09:41</div>
+            <div class="right"><i data-lucide="signal-low"></i><i data-lucide="wifi-off"></i><span class="battery"><i data-lucide="battery-medium"></i>82</span></div>
+          </div>
+          <div class="app-head">
+            <div class="left">
+              <div class="kicker">Sam. 12 sept · 09:41</div>
+              <h1>Mes <span class="em">interventions</span></h1>
+            </div>
+            <button class="sync-btn"><i data-lucide="refresh-cw"></i><span class="indicator warn"></span></button>
+          </div>
+          <div class="sync-meta"><strong>Koffi N'Guessan</strong><span class="dot"></span><span>Dernière synchro : 12/09 · 08:15</span></div>
+          <div class="offline-banner"><i data-lucide="wifi-off"></i>Hors ligne — données locales</div>
+          <div class="list">
+            <div class="tile" data-status="planifiee">
+              <div class="marker"></div>
+              <div class="body">
+                <div class="ref"><span>#0142</span><span class="sync synced"><i data-lucide="check"></i>Synchronisée</span></div>
+                <div class="name">Hôtel Ivoire</div>
+                <div class="loc">Boulevard Hassan II, Cocody</div>
+                <div class="foot">
+                  <span class="time"><span class="day">12/09</span><span class="sep">·</span>09:00</span>
+                  <span class="status"><span class="d"></span>Planifiée</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tile" data-status="realisee">
+              <div class="marker"></div>
+              <div class="body">
+                <div class="ref"><span>#0140</span><span class="sync pending">À synchroniser</span></div>
+                <div class="name">Pharmacie Saint Jean</div>
+                <div class="loc">Rue des Jardins, II Plateaux</div>
+                <div class="foot">
+                  <span class="time"><span class="day">12/09</span><span class="sep">·</span>14:00</span>
+                  <span class="status"><span class="d"></span>Réalisée</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tile" data-status="planifiee">
+              <div class="marker"></div>
+              <div class="body">
+                <div class="ref"><span>#0141</span><span class="sync pending">À synchroniser</span></div>
+                <div class="name">SGBCI Plateau</div>
+                <div class="loc">Avenue Chardy, Plateau</div>
+                <div class="foot">
+                  <span class="time"><span class="day">13/09</span><span class="sep">·</span>11:30</span>
+                  <span class="status"><span class="d"></span>Planifiée</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="tile" data-status="planifiee">
+              <div class="marker"></div>
+              <div class="body">
+                <div class="ref"><span>#0138</span><span class="sync synced"><i data-lucide="check"></i>Synchronisée</span></div>
+                <div class="name">Résidence Les Palmiers</div>
+                <div class="loc">Zone 4, Marcory</div>
+                <div class="foot">
+                  <span class="time"><span class="day">13/09</span><span class="sep">·</span>15:00</span>
+                  <span class="status"><span class="d"></span>Planifiée</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="gesture-bar"></div>
+        </div>
+      </article>
+
+    </section>
+  </main>
+
+<script>
+  // Skeleton tiles
+  (function(){
+    const root = document.getElementById('skel-list');
+    if(!root) return;
+    const widths = [[50,70,55],[45,80,55],[55,65,55],[45,75,55],[55,72,55],[50,68,55]];
+    let html = '';
+    for (const [wref, wname, wloc] of widths){
+      html += `
+        <div class="tile">
+          <div class="body">
+            <div style="margin-bottom:6px"><span class="skel" style="width:${wref}px;height:9px"></span></div>
+            <div style="margin-bottom:5px"><span class="skel" style="width:${wname}%;height:13px"></span></div>
+            <div><span class="skel" style="width:${wloc}%;height:9px"></span></div>
+            <div style="margin-top:10px;display:flex;justify-content:space-between">
+              <span class="skel" style="width:70px;height:11px"></span>
+              <span class="skel" style="width:60px;height:11px"></span>
+            </div>
+          </div>
+        </div>`;
+    }
+    root.innerHTML = html;
+  })();
+  if (window.lucide) window.lucide.createIcons();
+</script>
+</body>
+</html>
