@@ -42,9 +42,9 @@ mobile/
   pubspec.lock                    (versionné)
   lib/
     main.dart                     (runApp + ProviderScope, rien d'autre)
+    app.dart                      (widget racine MaterialApp, temporaire jusqu'a l'ecran de connexion)
     models/
-      intervention.dart           (aligné sur les DTO backend)
-      photo.dart
+      enums.dart                  (miroir des enums serveur + StatutSync, local uniquement)
       utilisateur.dart
     screens/
       connexion_screen.dart
@@ -81,6 +81,8 @@ Miroir du modèle serveur (voir `docs/ADR.md`, socle commun) plus les champs de 
 **Table `photo` locale** : `idLocal`, `interventionIdLocal`, `categorie` (AVANT, APRES), `cheminLocal` (fichier sur l'appareil), `statutSync`.
 
 Une intervention n'est **jamais créée localement** dans le MVP : elle arrive par la synchro. Le technicien ne modifie que `problemeConstate`, `travauxRealises`, les photos, et passe le statut à `REALISEE` avec `dateRealisation`.
+
+**Implémenté (2026-09-12)** avec Drift : `Interventions`/`Photos` sont des tables Drift dans `data/local_db.dart`, `idServeur` est la clé primaire d'`Interventions` (jamais de ligne locale sans identifiant serveur). Pas de `models/intervention.dart` ni `models/photo.dart` séparés : Drift génère déjà les classes `Intervention`/`Photo` à partir des tables, les dupliquer à la main serait une double maintenance sans bénéfice. `models/enums.dart` reste nécessaire (les enums, eux, ne sont pas générés par Drift). Statut de synchro par défaut : `CONFIRME` pour une intervention reçue par pull, `LOCAL` pour une photo prise sur le terrain.
 
 ---
 
