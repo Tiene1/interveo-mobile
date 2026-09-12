@@ -42,12 +42,14 @@ mobile/
   pubspec.lock                    (versionné)
   lib/
     main.dart                     (runApp + ProviderScope, rien d'autre)
-    app.dart                      (widget racine MaterialApp, temporaire jusqu'a l'ecran de connexion)
+    app.dart                      (widget racine MaterialApp, theme --paper/--brand)
     models/
       enums.dart                  (miroir des enums serveur + StatutSync, local uniquement)
       utilisateur.dart
     screens/
+      splash_screen.dart          (monogramme 2s, verifie la session US4.2 puis route)
       connexion_screen.dart
+      placeholder_home_screen.dart (temporaire, jusqu'a mes_interventions_screen.dart)
       mes_interventions_screen.dart
       detail_intervention_screen.dart
       completer_intervention_screen.dart

@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_service.dart';
+import 'connexion_screen.dart';
 import 'placeholder_home_screen.dart';
 
-/// Ecran de demarrage : affiche le monogramme de l'app pendant 2 secondes
-/// puis bascule vers la suite. Mene vers un placeholder tant que l'ecran
-/// de connexion (US4.1) n'existe pas.
+/// Ecran de demarrage : affiche le monogramme pendant 2 secondes pendant que
+/// la session est verifiee (US4.2), puis bascule vers l'ecran de connexion
+/// ou vers la suite selon la presence d'un jeton. Mene vers un placeholder
+/// tant que l'ecran Mes interventions n'existe pas.
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  SplashScreen({super.key, AuthService? authService})
+      : authService = authService ?? AuthService();
+
+  final AuthService authService;
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -20,10 +26,16 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _demarrer() async {
-    await Future.delayed(const Duration(seconds: 2));
+    final resultats = await Future.wait([
+      widget.authService.sessionValide(),
+      Future.delayed(const Duration(seconds: 2)),
+    ]);
     if (!mounted) return;
+    final sessionValide = resultats[0] as bool;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const PlaceholderHomeScreen()),
+      MaterialPageRoute(
+        builder: (_) => sessionValide ? const PlaceholderHomeScreen() : ConnexionScreen(authService: widget.authService),
+      ),
     );
   }
 

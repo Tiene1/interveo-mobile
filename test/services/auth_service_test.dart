@@ -3,17 +3,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:sim_interventions/services/api_client.dart';
 import 'package:sim_interventions/services/auth_service.dart';
-import 'package:sim_interventions/services/token_storage.dart';
 
-class FakeTokenStorage implements TokenStorage {
-  final Map<String, String> _valeurs = {};
-
-  @override
-  Future<String?> lire(String cle) async => _valeurs[cle];
-
-  @override
-  Future<void> ecrire(String cle, String valeur) async => _valeurs[cle] = valeur;
-}
+import '../support/fake_token_storage.dart';
 
 void main() {
   test('connecter stocke le jeton recu du backend', () async {
