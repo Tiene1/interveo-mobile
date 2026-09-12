@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Point d'entree temporaire, remplace par l'ecran de connexion (US4.1)
-/// des que le ticket auth est traite.
+import 'screens/splash_screen.dart';
+
 class SimInterventionsApp extends StatelessWidget {
   const SimInterventionsApp({super.key});
 
@@ -9,9 +9,11 @@ class SimInterventionsApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SIM Interventions',
-      home: const Scaffold(
-        body: Center(child: Text('SIM Interventions')),
+      theme: ThemeData(
+        scaffoldBackgroundColor: const Color(0xFFFBFBF9), // --paper
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)), // --brand
       ),
+      home: const SplashScreen(),
     );
   }
 }
