@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../models/enums.dart';
 import '../local_db.dart';
 
 part 'intervention_dao.g.dart';
@@ -12,6 +13,14 @@ class InterventionDao extends DatabaseAccessor<AppDatabase>
   InterventionDao(super.db);
 
   Stream<List<Intervention>> watchToutes() => select(interventions).watch();
+
+  /// US2.1 : interventions non annulees, triees par date et heure prevues.
+  Stream<List<Intervention>> watchAttribuees() {
+    return (select(interventions)
+          ..where((i) => i.statut.equalsValue(StatutIntervention.annulee).not())
+          ..orderBy([(i) => OrderingTerm.asc(i.datePrevue)]))
+        .watch();
+  }
 
   Future<Intervention?> parId(String idServeur) =>
       (select(interventions)..where((i) => i.idServeur.equals(idServeur)))

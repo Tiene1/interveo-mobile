@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
-import 'placeholder_home_screen.dart';
+import 'mes_interventions_screen.dart';
 
 const _inkColor = Color(0xFF0F172A);
 const _textSoft = Color(0xFF475569);
@@ -11,8 +11,8 @@ const _danger = Color(0xFFDC2626);
 const _lineStrong = Color(0xFFCBD5E1);
 const _line = Color(0xFFE2E8F0);
 
-/// Ecran de connexion (US4.1). Mene vers PlaceholderHomeScreen en attendant
-/// le vrai ecran Mes interventions (ticket a part).
+/// Ecran de connexion (US4.1). Mene vers MesInterventionsScreen (US2.1)
+/// une fois la connexion reussie.
 class ConnexionScreen extends StatefulWidget {
   ConnexionScreen({super.key, AuthService? authService})
       : authService = authService ?? AuthService();
@@ -47,7 +47,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
       await widget.authService.connecter(_identifiantCtrl.text, _motDePasseCtrl.text);
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const PlaceholderHomeScreen()),
+        MaterialPageRoute(builder: (_) => const MesInterventionsScreen()),
       );
     } on ApiException catch (e) {
       setState(() {

@@ -49,14 +49,14 @@ mobile/
     screens/
       splash_screen.dart          (monogramme 2s, verifie la session US4.2 puis route)
       connexion_screen.dart
-      placeholder_home_screen.dart (temporaire, jusqu'a mes_interventions_screen.dart)
-      mes_interventions_screen.dart
+      mes_interventions_screen.dart (US2.1 : onglets Toutes/Planifiees/Realisees, badge de synchro)
       detail_intervention_screen.dart
       completer_intervention_screen.dart
     widgets/                       (un widget réutilisable par fichier : InterventionTile, PhotoPickerSection, SyncBadge, EtatVide, EtatErreur)
     services/
       api_client.dart             (wrapper réseau, ajoute le JWT, base = config API_URL)
       auth_service.dart           (login, stockage sécurisé du JWT, lecture au démarrage)
+      token_storage.dart          (abstraction testable sur flutter_secure_storage)
       sync_service.dart           (détection de connectivité, push des LOCAL, pull delta, résolution de conflit)
     data/
       local_db.dart               (base locale : tables intervention et photo + champs de synchro)
@@ -64,9 +64,11 @@ mobile/
         intervention_dao.dart
         photo_dao.dart
     state/
-      session_provider.dart       (Riverpod : état de session)
-      interventions_provider.dart (Riverpod : liste et détail depuis la base locale)
+      interventions_provider.dart (Riverpod : databaseProvider + liste attribuee US2.1)
       sync_status_provider.dart   (Riverpod : état de synchro par intervention)
+    utils/
+      reference.dart               (reference courte visuelle, miroir de web/.../lib/reference.ts)
+      date.dart                    (format court "jj/mm · HH:mm")
     config/
       env.dart                    (API_URL)
   test/                           (flutter test, couverture > 70 %)
