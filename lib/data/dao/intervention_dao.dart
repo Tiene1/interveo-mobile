@@ -28,4 +28,15 @@ class InterventionDao extends DatabaseAccessor<AppDatabase>
 
   Future<void> upsert(InterventionsCompanion intervention) =>
       into(interventions).insertOnConflictUpdate(intervention);
+
+  /// Le plus recent `misAJourLe` connu localement : sert de curseur `depuis`
+  /// pour le prochain pull (le serveur trie deja par misAJourLe croissant).
+  /// Null si la base locale est vide (premiere synchro : tout est demande).
+  Future<DateTime?> derniereMiseAJour() async {
+    final ligne = await (select(interventions)
+          ..orderBy([(i) => OrderingTerm.desc(i.misAJourLe)])
+          ..limit(1))
+        .getSingleOrNull();
+    return ligne?.misAJourLe;
+  }
 }

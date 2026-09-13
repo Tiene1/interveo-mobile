@@ -55,4 +55,25 @@ void main() {
 
     await ApiClient(client: client).get('/auth/moi', jeton: 'jwt-fictif');
   });
+
+  test('getListe decode un tableau JSON a la racine', () async {
+    final client = MockClient((request) async {
+      expect(request.url.path, '/sync/interventions');
+      return http.Response('[{"id":"i-1"},{"id":"i-2"}]', 200);
+    });
+
+    final reponse = await ApiClient(client: client).getListe('/sync/interventions');
+
+    expect(reponse, hasLength(2));
+    expect((reponse.first as Map)['id'], 'i-1');
+  });
+
+  test('getListe leve une ApiException sur une reponse d erreur', () async {
+    final client = MockClient((request) async => http.Response('{"message":"non autorise"}', 401));
+
+    await expectLater(
+      ApiClient(client: client).getListe('/sync/interventions'),
+      throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 401)),
+    );
+  });
 }

@@ -17,11 +17,13 @@ const _lineSoft = Color(0xFFEEF2F6);
 
 enum _Onglet { toutes, planifiees, realisees }
 
-/// Ecran "Mes interventions" (US2.1). Lit uniquement la base locale, jamais
-/// le reseau : la synchronisation qui peuple cette liste est un ticket a
-/// part (sync_service.dart). Le bouton de synchro, le bandeau hors ligne et
-/// le tirer-pour-rafraichir de la maquette sont volontairement absents tant
-/// que ce service n'existe pas (ils seraient decoratifs, pas fonctionnels).
+/// Ecran "Mes interventions" (US2.1). L'affichage lit uniquement la base
+/// locale, jamais le reseau directement : seule la synchro (bouton, tirer-
+/// pour-rafraichir, ou automatique a l'ouverture) parle a l'API et met a
+/// jour la base, ce qui fait reagir la liste. Encore absents (dependent
+/// de capacites non construites) : bandeau hors ligne (connectivity_plus
+/// pas encore branche), "Synchronise il y a X min" et nom du technicien
+/// (necessiteraient GET /auth/moi, explicitement opportuniste).
 class MesInterventionsScreen extends ConsumerStatefulWidget {
   const MesInterventionsScreen({super.key});
 
@@ -31,6 +33,32 @@ class MesInterventionsScreen extends ConsumerStatefulWidget {
 
 class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen> {
   _Onglet _onglet = _Onglet.toutes;
+  bool _synchronisationEnCours = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // setState ne doit pas etre appele de facon synchrone pendant initState :
+    // on attend le premier frame (addPostFrameCallback) avant de lancer la
+    // synchro, qui met _synchronisationEnCours a jour via setState.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _synchroniser());
+  }
+
+  Future<void> _synchroniser() async {
+    if (_synchronisationEnCours) return;
+    setState(() => _synchronisationEnCours = true);
+    try {
+      await ref.read(syncServiceProvider).tirerInterventions();
+    } catch (erreur) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Synchronisation impossible. Vérifiez votre connexion.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _synchronisationEnCours = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,23 +92,43 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
         _entete(),
         _onglets(toutes.length, planifiees.length, realisees.length),
         Expanded(
-          child: affichees.isEmpty ? _etatVide() : _liste(affichees),
+          child: RefreshIndicator(
+            onRefresh: _synchroniser,
+            child: affichees.isEmpty ? _etatVide() : _liste(affichees),
+          ),
         ),
       ],
     );
   }
 
   Widget _entete() {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(16, 20, 16, 12),
-      child: Text.rich(
-        TextSpan(
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w400, color: _inkColor, letterSpacing: -0.8),
-          children: [
-            TextSpan(text: 'Mes '),
-            TextSpan(text: 'interventions', style: TextStyle(fontStyle: FontStyle.italic)),
-          ],
-        ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text.rich(
+            TextSpan(
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w400, color: _inkColor, letterSpacing: -0.8),
+              children: [
+                TextSpan(text: 'Mes '),
+                TextSpan(text: 'interventions', style: TextStyle(fontStyle: FontStyle.italic)),
+              ],
+            ),
+          ),
+          IconButton(
+            key: const Key('boutonSynchroniser'),
+            onPressed: _synchronisationEnCours ? null : _synchroniser,
+            icon: _synchronisationEnCours
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.sync, size: 20, color: _textSoft),
+          ),
+        ],
       ),
     );
   }
@@ -130,6 +178,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
 
   Widget _liste(List<Intervention> interventions) {
     return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: interventions.length,
       separatorBuilder: (_, _) => const Divider(height: 1, color: _lineSoft),
@@ -200,31 +249,29 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   }
 
   Widget _etatVide() {
-    return Padding(
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(width: 24, height: 1, color: _inkColor),
-          const SizedBox(height: 12),
-          const Text('AUCUNE TÂCHE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _textSoft, letterSpacing: 1.6)),
-          const SizedBox(height: 8),
-          const Text.rich(
-            TextSpan(
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w400, color: _inkColor, height: 1.15),
-              children: [
-                TextSpan(text: 'Aucune intervention '),
-                TextSpan(text: 'attribuée.', style: TextStyle(fontStyle: FontStyle.italic)),
-              ],
-            ),
+      children: [
+        Container(width: 24, height: 1, color: _inkColor),
+        const SizedBox(height: 12),
+        const Text('AUCUNE TÂCHE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _textSoft, letterSpacing: 1.6)),
+        const SizedBox(height: 8),
+        const Text.rich(
+          TextSpan(
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w400, color: _inkColor, height: 1.15),
+            children: [
+              TextSpan(text: 'Aucune intervention '),
+              TextSpan(text: 'attribuée.', style: TextStyle(fontStyle: FontStyle.italic)),
+            ],
           ),
-          const SizedBox(height: 12),
-          const Text(
-            "Vous n'avez actuellement aucune intervention assignée.",
-            style: TextStyle(fontSize: 13, color: _textSoft, height: 1.5),
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          "Vous n'avez actuellement aucune intervention assignée.",
+          style: TextStyle(fontSize: 13, color: _textSoft, height: 1.5),
+        ),
+      ],
     );
   }
 }

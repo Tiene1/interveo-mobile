@@ -1,11 +1,11 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sim_interventions/data/local_db.dart';
 import 'package:sim_interventions/models/enums.dart';
 import 'package:sim_interventions/screens/mes_interventions_screen.dart';
-import 'package:sim_interventions/state/interventions_provider.dart';
+
+import '../support/app_test_scope.dart';
 
 InterventionsCompanion _intervention({
   required String idServeur,
@@ -37,12 +37,7 @@ Future<AppDatabase> _dbAvecInterventions(List<InterventionsCompanion> interventi
   return db;
 }
 
-Widget _app(AppDatabase db) {
-  return ProviderScope(
-    overrides: [databaseProvider.overrideWithValue(db)],
-    child: const MaterialApp(home: MesInterventionsScreen()),
-  );
-}
+Widget _app(AppDatabase db) => appTest(home: const MesInterventionsScreen(), db: db);
 
 /// Drift programme un timer interne (duree 0) quand une requete .watch()
 /// se ferme ; sans ce pump supplementaire apres la destruction du widget,

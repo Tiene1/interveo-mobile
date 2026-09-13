@@ -11,8 +11,6 @@ class AuthService {
   final ApiClient _apiClient;
   final TokenStorage _storage;
 
-  static const _cleJeton = 'jwt';
-
   /// Appelle POST /auth/login puis stocke le jeton recu. Leve une
   /// [ApiException] (401 : identifiant/mot de passe incorrect) en cas
   /// d'echec, propagee telle quelle pour l'ecran de connexion.
@@ -21,10 +19,10 @@ class AuthService {
       '/auth/login',
       corps: {'identifiant': identifiant, 'motDePasse': motDePasse},
     );
-    await _storage.ecrire(_cleJeton, reponse['accessToken'] as String);
+    await _storage.ecrire(cleJetonJwt, reponse['accessToken'] as String);
   }
 
-  Future<String?> jetonActuel() => _storage.lire(_cleJeton);
+  Future<String?> jetonActuel() => _storage.lire(cleJetonJwt);
 
   /// US4.2 : presence du jeton suffit, y compris hors reseau. Un jeton
   /// expire ou revoque echouera seulement au prochain appel reseau (sync),

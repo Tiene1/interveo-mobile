@@ -1,0 +1,40 @@
+import 'dart:convert';
+
+import 'package:drift/native.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:sim_interventions/data/local_db.dart';
+import 'package:sim_interventions/services/api_client.dart';
+import 'package:sim_interventions/services/sync_service.dart';
+import 'package:sim_interventions/state/interventions_provider.dart';
+
+import 'fake_token_storage.dart';
+
+/// ProviderScope de test qui evite tout vrai appel reseau : MesInterventionsScreen
+/// declenche une synchro des son initState, donc tout test qui l'atteint (via
+/// le splash, la connexion, ou directement) a besoin que syncServiceProvider
+/// reponde instantanement plutot que d'attendre un vrai serveur.
+Widget appTest({
+  required Widget home,
+  AppDatabase? db,
+  List<Map<String, dynamic>> reponseSynchro = const [],
+}) {
+  final base = db ?? AppDatabase(NativeDatabase.memory());
+  final client = MockClient((request) async => http.Response(jsonEncode(reponseSynchro), 200));
+
+  return ProviderScope(
+    overrides: [
+      databaseProvider.overrideWithValue(base),
+      syncServiceProvider.overrideWithValue(
+        SyncService(
+          interventionDao: base.interventionDao,
+          apiClient: ApiClient(client: client),
+          tokenStorage: FakeTokenStorage(),
+        ),
+      ),
+    ],
+    child: MaterialApp(home: home),
+  );
+}

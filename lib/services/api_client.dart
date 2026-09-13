@@ -45,20 +45,33 @@ class ApiClient {
     return _traiterReponse(reponse);
   }
 
+  /// Comme [get], pour les endpoints qui renvoient un tableau JSON a la
+  /// racine (ex. GET /sync/interventions) plutot qu'un objet.
+  Future<List<dynamic>> getListe(String chemin, {String? jeton}) async {
+    final reponse = await _client.get(
+      Uri.parse('$apiBaseUrl$chemin'),
+      headers: _entetes(jeton),
+    );
+    _leverSiErreur(reponse);
+    return reponse.body.isEmpty ? [] : jsonDecode(reponse.body) as List<dynamic>;
+  }
+
   Map<String, String> _entetes(String? jeton) => {
         'Content-Type': 'application/json',
         if (jeton != null) 'Authorization': 'Bearer $jeton',
       };
 
   Map<String, dynamic> _traiterReponse(http.Response reponse) {
+    _leverSiErreur(reponse);
+    return reponse.body.isEmpty ? <String, dynamic>{} : jsonDecode(reponse.body) as Map<String, dynamic>;
+  }
+
+  void _leverSiErreur(http.Response reponse) {
+    if (reponse.statusCode >= 200 && reponse.statusCode < 300) return;
+
     final corps = reponse.body.isEmpty
         ? <String, dynamic>{}
         : jsonDecode(reponse.body) as Map<String, dynamic>;
-
-    if (reponse.statusCode >= 200 && reponse.statusCode < 300) {
-      return corps;
-    }
-
     final message = corps['message'];
     final texte = message is List
         ? message.join(', ')

@@ -1,23 +1,15 @@
-import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sim_interventions/data/local_db.dart';
 import 'package:sim_interventions/screens/connexion_screen.dart';
 import 'package:sim_interventions/screens/mes_interventions_screen.dart';
 import 'package:sim_interventions/screens/splash_screen.dart';
 import 'package:sim_interventions/services/api_client.dart';
 import 'package:sim_interventions/services/auth_service.dart';
-import 'package:sim_interventions/state/interventions_provider.dart';
 
+import '../support/app_test_scope.dart';
 import '../support/fake_token_storage.dart';
 
-Widget _app(Widget home) {
-  return ProviderScope(
-    overrides: [databaseProvider.overrideWithValue(AppDatabase(NativeDatabase.memory()))],
-    child: MaterialApp(home: home),
-  );
-}
+Widget _app(Widget home) => appTest(home: home);
 
 /// Drift programme un timer interne (duree 0) quand une requete .watch()
 /// se ferme ; sans ce pump supplementaire apres la destruction du widget,

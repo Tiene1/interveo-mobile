@@ -1,5 +1,9 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+/// Cle partagee entre AuthService (ecriture a la connexion) et SyncService
+/// (lecture pour authentifier les appels de synchro).
+const cleJetonJwt = 'jwt';
+
 /// Abstraction du stockage du jeton : permet de substituer une fausse
 /// implementation en test sans dependance de mock supplementaire.
 abstract class TokenStorage {
