@@ -10,15 +10,11 @@ import '../utils/date.dart';
 import '../utils/maps.dart';
 import '../utils/reference.dart';
 import '../utils/text.dart';
+import 'completer_intervention_screen.dart';
 
 /// Ecran de detail (US2.2 : motif signale/non renseigne, date et heure
 /// prevues ; US2.3 : adresse, telephones cliquables, itineraire). Lit
 /// uniquement la base locale via un flux reactif par id.
-///
-/// Le bouton d'action du bas ("Completer l'intervention" / "Voir le compte
-/// rendu" dans la maquette) est volontairement absent de ce ticket : sa
-/// destination (CompleterInterventionScreen) n'existe pas encore, il sera
-/// ajoute avec ce prochain ecran.
 class DetailInterventionScreen extends ConsumerWidget {
   const DetailInterventionScreen({super.key, required this.idServeur});
 
@@ -27,6 +23,7 @@ class DetailInterventionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final intervention = ref.watch(interventionParIdProvider(idServeur));
+    final data = intervention.asData?.value;
 
     return Scaffold(
       backgroundColor: paper,
@@ -48,8 +45,68 @@ class DetailInterventionScreen extends ConsumerWidget {
                     : _corps(context, data),
               ),
             ),
+            if (data != null) _barreBas(context, data),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _barreBas(BuildContext context, Intervention data) {
+    final estRealisee = data.statut == StatutIntervention.realisee;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: line)),
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: estRealisee
+            ? OutlinedButton(
+                onPressed: () => _ouvrirCompleter(context, data.idServeur),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: lineStrong),
+                  foregroundColor: inkColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text('Voir le compte rendu'),
+                    SizedBox(width: 10),
+                    Icon(Icons.arrow_forward, size: 16),
+                  ],
+                ),
+              )
+            : ElevatedButton(
+                onPressed: () => _ouvrirCompleter(context, data.idServeur),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: inkColor,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text("Compléter l'intervention"),
+                    SizedBox(width: 10),
+                    Icon(Icons.arrow_forward, size: 16),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+
+  void _ouvrirCompleter(BuildContext context, String idServeur) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CompleterInterventionScreen(idServeur: idServeur),
       ),
     );
   }

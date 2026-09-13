@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sim_interventions/data/local_db.dart';
 import 'package:sim_interventions/models/enums.dart';
+import 'package:sim_interventions/screens/completer_intervention_screen.dart';
 import 'package:sim_interventions/screens/detail_intervention_screen.dart';
 import 'package:sim_interventions/state/interventions_provider.dart';
 
@@ -181,6 +182,38 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_back));
     await tester.pumpAndSettle();
     expect(find.byType(DetailInterventionScreen), findsNothing);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets("le bouton du bas ouvre Completer, libelle selon le statut", (tester) async {
+    final dbPlanifiee = await _dbAvec(_intervention());
+
+    await tester.pumpWidget(_app(dbPlanifiee));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Compléter l'intervention"), findsOneWidget);
+    expect(find.text('Voir le compte rendu'), findsNothing);
+
+    await tester.tap(find.text("Compléter l'intervention"));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CompleterInterventionScreen), findsOneWidget);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('le bouton du bas affiche Voir le compte rendu si Realisee', (tester) async {
+    final db = await _dbAvec(_intervention(
+      statut: StatutIntervention.realisee,
+      dateRealisation: DateTime(2026, 9, 14, 15, 30),
+    ));
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Voir le compte rendu'), findsOneWidget);
+    expect(find.text("Compléter l'intervention"), findsNothing);
 
     await _videLeTimerDeFermeture(tester);
   });
