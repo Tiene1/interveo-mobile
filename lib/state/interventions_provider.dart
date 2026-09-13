@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/local_db.dart';
+import '../services/photo_stockage_service.dart';
 import '../services/sync_service.dart';
 
 /// Instance unique de la base locale pour toute l'app (Riverpod garde le
@@ -27,4 +28,16 @@ final interventionParIdProvider = StreamProvider.family((ref, String idServeur) 
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(databaseProvider);
   return SyncService(interventionDao: db.interventionDao);
+});
+
+/// US2.7/US2.8 : photos (avant et apres confondues, filtrees cote ecran).
+final photosParInterventionProvider = StreamProvider.family((ref, String idServeur) {
+  final db = ref.watch(databaseProvider);
+  return db.photoDao.watchPourIntervention(idServeur);
+});
+
+/// Instance unique, testable via overrideWithValue (voir FakeTokenStorage
+/// pour le meme principe).
+final photoStockageServiceProvider = Provider<PhotoStockageService>((ref) {
+  return PhotoStockageService();
 });

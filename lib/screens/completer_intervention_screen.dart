@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../data/local_db.dart';
 import '../models/enums.dart';
@@ -11,10 +13,12 @@ import '../theme/design_tokens.dart';
 import '../utils/date.dart';
 import '../utils/reference.dart';
 
-/// Ecran Completer l'intervention (US2.5, US2.6, US2.9, US2.10). Les photos
-/// avant/apres (US2.7, US2.8) sont un ticket a part : capture appareil
-/// photo/galerie, stockage fichier, DAO deja pret (photo_dao.dart) mais pas
-/// encore branche a un ecran.
+const _maxPhotosParCategorie = 2;
+
+/// Ecran Completer l'intervention (US2.5, US2.6, US2.7, US2.8, US2.9,
+/// US2.10). Le push serveur des clotures/photos (POST /sync/interventions,
+/// POST /interventions/:id/photos) reste hors perimetre : sync_service.dart
+/// ne fait pour l'instant que le pull.
 class CompleterInterventionScreen extends ConsumerStatefulWidget {
   const CompleterInterventionScreen({super.key, required this.idServeur});
 
@@ -107,6 +111,9 @@ class _CompleterInterventionScreenState
   @override
   Widget build(BuildContext context) {
     final intervention = ref.watch(interventionParIdProvider(widget.idServeur));
+    final photos =
+        ref.watch(photosParInterventionProvider(widget.idServeur)).asData?.value ??
+        const <Photo>[];
 
     return Scaffold(
       backgroundColor: paper,
@@ -129,7 +136,7 @@ class _CompleterInterventionScreenState
               children: [
                 _appBar(estCloturee),
                 if (estCloturee) _bandeauSucces(data),
-                Expanded(child: _corps(data, estCloturee)),
+                Expanded(child: _corps(data, estCloturee, photos)),
                 if (!estCloturee) _barreBas(),
               ],
             );
@@ -233,7 +240,11 @@ class _CompleterInterventionScreenState
     );
   }
 
-  Widget _corps(Intervention data, bool estCloturee) {
+  Widget _corps(Intervention data, bool estCloturee, List<Photo> photos) {
+    final photosAvant =
+        photos.where((p) => p.categorie == CategoriePhoto.avant).toList();
+    final photosApres =
+        photos.where((p) => p.categorie == CategoriePhoto.apres).toList();
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       child: Column(
@@ -255,6 +266,20 @@ class _CompleterInterventionScreenState
             lectureSeule: estCloturee,
             surChangement: _onChangeTravaux,
             texteVide: 'Décrivez les travaux effectués…',
+          ),
+          const SizedBox(height: 24),
+          _sectionPhotos(
+            label: 'Photos avant',
+            categorie: CategoriePhoto.avant,
+            photos: photosAvant,
+            lectureSeule: estCloturee,
+          ),
+          const SizedBox(height: 24),
+          _sectionPhotos(
+            label: 'Photos après',
+            categorie: CategoriePhoto.apres,
+            photos: photosApres,
+            lectureSeule: estCloturee,
           ),
         ],
       ),
@@ -373,6 +398,179 @@ class _CompleterInterventionScreenState
         ),
       ],
     );
+  }
+
+  Widget _sectionPhotos({
+    required String label,
+    required CategoriePhoto categorie,
+    required List<Photo> photos,
+    required bool lectureSeule,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text.rich(
+          TextSpan(
+            text: label.toUpperCase(),
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: textSoft,
+              letterSpacing: 1.6,
+            ),
+            children: [
+              TextSpan(
+                text: '   ${photos.length} / $_maxPhotosParCategorie',
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.w500,
+                  color: textWeak,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            for (var i = 0; i < photos.length; i++) ...[
+              _miniaturePhoto(photos[i], i + 1, lectureSeule),
+              const SizedBox(width: 10),
+            ],
+            if (!lectureSeule && photos.length < _maxPhotosParCategorie)
+              _boutonAjouterPhoto(categorie),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _miniaturePhoto(Photo photo, int numero, bool lectureSeule) {
+    final etiquette = photo.categorie == CategoriePhoto.avant ? 'AVANT' : 'APRES';
+    return Container(
+      key: Key('photo-${photo.idLocal}'),
+      width: 88,
+      height: 88,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        border: Border.all(color: line),
+        borderRadius: BorderRadius.circular(2),
+        color: const Color(0xFFF5F5F1), // --paper-soft
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.file(
+            File(photo.cheminLocal),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) =>
+                const Icon(Icons.image_outlined, color: textWeak),
+          ),
+          Positioned(
+            left: 5,
+            bottom: 5,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: inkColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+              child: Text(
+                '$etiquette · ${numero.toString().padLeft(2, '0')}',
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ),
+          ),
+          if (!lectureSeule)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: GestureDetector(
+                key: Key('supprimerPhoto-${photo.idLocal}'),
+                onTap: () => _supprimerPhoto(photo),
+                child: Container(
+                  width: 20,
+                  height: 20,
+                  decoration: const BoxDecoration(
+                    color: Color(0xE60F172A), // rgba(--ink-1, .9)
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.close, size: 12, color: Colors.white),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _boutonAjouterPhoto(CategoriePhoto categorie) {
+    return GestureDetector(
+      key: Key('ajouterPhoto-${categorie.name}'),
+      onTap: () => _demanderSourcePhoto(categorie),
+      child: Container(
+        width: 88,
+        height: 88,
+        decoration: BoxDecoration(
+          border: Border.all(color: lineStrong),
+          borderRadius: BorderRadius.circular(2),
+        ),
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.camera_alt_outlined, size: 20, color: textSoft),
+            SizedBox(height: 4),
+            Text(
+              'AJOUTER',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: textSoft,
+                letterSpacing: 0.6,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _demanderSourcePhoto(CategoriePhoto categorie) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: paper,
+      shape: const RoundedRectangleBorder(
+        side: BorderSide(color: inkColor, width: 2),
+        borderRadius: BorderRadius.vertical(top: Radius.zero),
+      ),
+      builder: (context) => const _ModaleSourcePhoto(),
+    );
+    if (source == null) return;
+
+    final chemin = await ref.read(photoStockageServiceProvider).capturer(source);
+    if (chemin == null) return;
+
+    final dao = ref.read(databaseProvider).photoDao;
+    await dao.ajouter(
+      PhotosCompanion.insert(
+        interventionIdLocal: widget.idServeur,
+        categorie: categorie,
+        cheminLocal: chemin,
+        statutSync: StatutSync.local,
+      ),
+    );
+  }
+
+  Future<void> _supprimerPhoto(Photo photo) async {
+    final dao = ref.read(databaseProvider).photoDao;
+    await dao.supprimer(photo.idLocal);
+    await ref.read(photoStockageServiceProvider).supprimerFichier(photo.cheminLocal);
   }
 
   Widget _barreBas() {
@@ -504,6 +702,90 @@ class _ModaleConfirmationCloture extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ModaleSourcePhoto extends StatelessWidget {
+  const _ModaleSourcePhoto();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 36,
+              height: 3,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: lineStrong,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Container(width: 16, height: 1, color: inkColor),
+              const SizedBox(width: 10),
+              const Text(
+                'AJOUTER UNE PHOTO',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: textSoft,
+                  letterSpacing: 1.6,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _option(
+            context,
+            cle: 'optionCamera',
+            icone: Icons.camera_alt_outlined,
+            libelle: 'Prendre une photo',
+            source: ImageSource.camera,
+          ),
+          const SizedBox(height: 8),
+          _option(
+            context,
+            cle: 'optionGalerie',
+            icone: Icons.photo_library_outlined,
+            libelle: 'Choisir dans la galerie',
+            source: ImageSource.gallery,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _option(
+    BuildContext context, {
+    required String cle,
+    required IconData icone,
+    required String libelle,
+    required ImageSource source,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton.icon(
+        key: Key(cle),
+        onPressed: () => Navigator.of(context).pop(source),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: line),
+          foregroundColor: inkColor,
+          alignment: Alignment.centerLeft,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+        icon: Icon(icone, size: 18),
+        label: Text(libelle),
       ),
     );
   }

@@ -51,20 +51,21 @@ mobile/
       connexion_screen.dart
       mes_interventions_screen.dart (US2.1 : onglets Toutes/Planifiees/Realisees, badge de synchro)
       detail_intervention_screen.dart (US2.2/US2.3 : motif, rendez-vous, adresse, appels, itineraire)
-      completer_intervention_screen.dart (US2.5/US2.6/US2.9/US2.10 : texte + cloture ; photos = ticket a part, cf. section 4)
+      completer_intervention_screen.dart (US2.5/US2.6/US2.7/US2.8/US2.9/US2.10 : texte, photos et cloture)
     widgets/                       (un widget réutilisable par fichier : InterventionTile, PhotoPickerSection, SyncBadge, EtatVide, EtatErreur)
     services/
       api_client.dart             (wrapper réseau, ajoute le JWT, base = config API_URL)
       auth_service.dart           (login, stockage sécurisé du JWT, lecture au démarrage)
       token_storage.dart          (abstraction testable sur flutter_secure_storage)
       sync_service.dart           (US2.11, pull GET /sync/interventions fait ; push/conflit pas encore, cf. section 4)
+      photo_stockage_service.dart (US2.7/US2.8 : capture image_picker + copie dans le stockage permanent de l'app)
     data/
       local_db.dart               (base locale : tables intervention et photo + champs de synchro)
       dao/
         intervention_dao.dart     (watchAttribuees, watchParId, mettreAJourSaisie, cloturer, derniereMiseAJour)
-        photo_dao.dart            (pret, pas encore branche a un ecran)
+        photo_dao.dart            (watchPourIntervention, listerPourIntervention, ajouter, supprimer)
     state/
-      interventions_provider.dart (Riverpod : databaseProvider, liste attribuee US2.1, detail par id US2.2/US2.3, syncServiceProvider)
+      interventions_provider.dart (Riverpod : databaseProvider, liste attribuee US2.1, detail par id US2.2/US2.3, photos par intervention US2.7/US2.8, syncServiceProvider, photoStockageServiceProvider)
     theme/
       design_tokens.dart           (couleurs du design system, partagees entre ecrans)
     utils/
@@ -121,8 +122,12 @@ Déclenchée au retour de connectivité, au passage de l'app au premier plan, ou
 - Modale de confirmation (bottom sheet) avant clôture : « Action définitive », Retour/Clôturer.
 - À la clôture (`InterventionDao.cloturer()`) : `statut = REALISEE`, `dateRealisation = maintenant`, `statutSync = LOCAL`. L'écran passe en lecture seule (bandeau succès, champs en lecture seule, plus de barre du bas). Meme écran utilisé pour "Compléter" (PLANIFIEE) et "Voir le compte rendu" (REALISEE), le comportement change uniquement selon `statut`.
 
-### Photos (US2.7, US2.8)
-- `image_picker` : appareil photo ou galerie. Maximum 2 par catégorie. Fichiers stockés sur l'appareil, chemin dans `photo.cheminLocal`. Retrait possible tant que l'intervention n'est pas clôturée. Envoi lors de la synchro.
+### Photos (US2.7, US2.8) — implémenté le 2026-09-13
+- `PhotoStockageService.capturer()` : ouvre `image_picker` (appareil photo ou galerie, choix via une modale bottom sheet propre à l'app) puis copie immédiatement le fichier renvoyé dans un dossier permanent (`getApplicationDocumentsDirectory()/photos/`) — le fichier temporaire d'`image_picker` n'est pas garanti de survivre. `PhotoDao.ajouter()` marque la ligne `statutSync = LOCAL` (elle devra être poussée au serveur).
+- Maximum 2 photos par catégorie (avant/après), vérifié côté écran : le bouton « Ajouter » disparaît au-delà. Retrait possible (bouton croix) tant que l'intervention n'est pas clôturée, via `PhotoDao.supprimer()` + suppression best-effort du fichier local (`PhotoStockageService.supprimerFichier()`). Une fois clôturée, les photos s'affichent en lecture seule, sans bouton Ajouter ni Supprimer.
+- Écart visuel assumé par rapport à la maquette `M4 - Completer intervention.html` : bordure pleine au lieu de pointillée sur le bouton « Ajouter » (pas de support natif pour les bordures en pointillés sans `CustomPainter` dédié) — dette technique mineure, purement esthétique.
+- `PhotoDao.listerPourIntervention()` (lecture ponctuelle, ajoutée à ce ticket) complète `watchPourIntervention()` (flux réactif, utilisé par l'écran) : une nouvelle souscription `.watch()` programme un timer interne (issue connue simolus3/drift#3323, déjà documentée pour les écrans) qui ne se résout, en test widget, qu'avec un `pump()` supplémentaire — un aller simple évite le problème pour les vérifications ponctuelles dans les tests.
+- Hors périmètre (ticket à part) : envoi des photos au serveur (`POST /interventions/:id/photos`), qui fait partie du volet push de la synchro non encore construit.
 
 ### Google Maps et téléphone (US2.3)
 - La géolocalisation ouvre Google Maps via `url_launcher` (`https://www.google.com/maps/dir/?api=1&destination=...` ou `geo:`). Si la géolocalisation est vide, seule l'adresse texte s'affiche.
@@ -143,7 +148,7 @@ Conformément à `FLUTTER_BEST_PRACTICES.md` §7, chaque package fait l'objet d'
 - Base locale : **Drift** (`drift_flutter`), tranché le 2026-09-12 — pas Isar, dépôt original à l'arrêt.
 - Stockage sécurisé du JWT : `flutter_secure_storage`, validé au ticket socle.
 - Détection de connectivité : `connectivity_plus`, installé mais pas encore écouté (cf. section 4).
-- Sélection d'image : `image_picker`, validé au ticket socle, pas encore utilisé (ticket Compléter intervention).
+- Sélection d'image : `image_picker`, validé au ticket socle, en usage depuis le ticket Compléter intervention (US2.7/US2.8, `photo_stockage_service.dart`).
 - Ouverture de liens : `url_launcher`, validé et installé au ticket Détail intervention (2026-09-13) — `tel:` pour les appels, `https://.../maps/dir/` pour l'itinéraire.
 - Client HTTP : `http` (officiel Dart), en usage depuis le ticket service auth.
 - Gestion d'état : `flutter_riverpod`, en usage depuis le ticket Mes interventions.

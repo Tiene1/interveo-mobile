@@ -16,6 +16,16 @@ class PhotoDao extends DatabaseAccessor<AppDatabase> with _$PhotoDaoMixin {
         .watch();
   }
 
+  /// Lecture ponctuelle (non reactive), utile pour verifier l'etat sans
+  /// s'abonner a un flux (une nouvelle souscription .watch() programme un
+  /// timer interne, cf. issue simolus3/drift#3323, qui ne resout qu'avec un
+  /// pump() de test supplementaire).
+  Future<List<Photo>> listerPourIntervention(String interventionIdLocal) {
+    return (select(
+      photos,
+    )..where((p) => p.interventionIdLocal.equals(interventionIdLocal))).get();
+  }
+
   Future<int> ajouter(PhotosCompanion photo) => into(photos).insert(photo);
 
   Future<void> supprimer(int idLocal) =>
