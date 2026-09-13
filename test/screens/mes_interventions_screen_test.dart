@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sim_interventions/data/local_db.dart';
 import 'package:sim_interventions/models/enums.dart';
+import 'package:sim_interventions/screens/detail_intervention_screen.dart';
 import 'package:sim_interventions/screens/mes_interventions_screen.dart';
 
 import '../support/app_test_scope.dart';
@@ -118,6 +119,22 @@ void main() {
 
     expect(find.text('À synchroniser'), findsOneWidget);
     expect(find.text('Synchronisée'), findsNothing);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('taper sur une tuile ouvre le detail de l intervention', (tester) async {
+    final db = await _dbAvecInterventions([
+      _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),
+    ]);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Hotel Ivoire'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(DetailInterventionScreen), findsOneWidget);
 
     await _videLeTimerDeFermeture(tester);
   });

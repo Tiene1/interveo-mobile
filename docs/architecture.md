@@ -50,7 +50,7 @@ mobile/
       splash_screen.dart          (monogramme 2s, verifie la session US4.2 puis route)
       connexion_screen.dart
       mes_interventions_screen.dart (US2.1 : onglets Toutes/Planifiees/Realisees, badge de synchro)
-      detail_intervention_screen.dart
+      detail_intervention_screen.dart (US2.2/US2.3 : motif, rendez-vous, adresse, appels, itineraire)
       completer_intervention_screen.dart
     widgets/                       (un widget réutilisable par fichier : InterventionTile, PhotoPickerSection, SyncBadge, EtatVide, EtatErreur)
     services/
@@ -61,13 +61,17 @@ mobile/
     data/
       local_db.dart               (base locale : tables intervention et photo + champs de synchro)
       dao/
-        intervention_dao.dart     (watchAttribuees, derniereMiseAJour = curseur "depuis" du pull)
+        intervention_dao.dart     (watchAttribuees, watchParId, derniereMiseAJour = curseur "depuis" du pull)
         photo_dao.dart
     state/
-      interventions_provider.dart (Riverpod : databaseProvider + liste attribuee US2.1 + syncServiceProvider)
+      interventions_provider.dart (Riverpod : databaseProvider, liste attribuee US2.1, detail par id US2.2/US2.3, syncServiceProvider)
+    theme/
+      design_tokens.dart           (couleurs du design system, partagees entre ecrans)
     utils/
       reference.dart               (reference courte visuelle, miroir de web/.../lib/reference.ts)
-      date.dart                    (format court "jj/mm · HH:mm")
+      date.dart                    (formats court et complet jj/mm[/aaaa] · HH:mm)
+      text.dart                    (nonRenseigne, miroir de web/.../lib/utils/text.ts)
+      maps.dart                    (lienItineraire : dir Google Maps, pas simple recherche comme le web)
     config/
       env.dart                    (API_URL)
   test/                           (flutter test, couverture > 70 %)
@@ -130,17 +134,17 @@ Déclenchée au retour de connectivité, au passage de l'app au premier plan, ou
 
 ---
 
-## 5. Besoins de packages (shortlist à valider en Phase III)
+## 5. Besoins de packages (validés au fil des tickets)
 
-Conformément à `FLUTTER_BEST_PRACTICES.md` §7, chaque package fait l'objet d'une shortlist de 2 à 3 candidats présentée à Cédric avant installation. Besoins prévus :
+Conformément à `FLUTTER_BEST_PRACTICES.md` §7, chaque package fait l'objet d'une shortlist présentée à Cédric avant installation.
 
-- Base locale : **Drift** ou **Isar** (choix structurant, à trancher).
-- Stockage sécurisé du JWT : `flutter_secure_storage` ou équivalent.
-- Détection de connectivité : `connectivity_plus` ou équivalent.
-- Sélection d'image : `image_picker` ou équivalent.
-- Ouverture de liens : `url_launcher`.
-- Client HTTP : `http` (officiel Dart) en premier choix.
-- Gestion d'état : `flutter_riverpod`.
+- Base locale : **Drift** (`drift_flutter`), tranché le 2026-09-12 — pas Isar, dépôt original à l'arrêt.
+- Stockage sécurisé du JWT : `flutter_secure_storage`, validé au ticket socle.
+- Détection de connectivité : `connectivity_plus`, installé mais pas encore écouté (cf. section 4).
+- Sélection d'image : `image_picker`, validé au ticket socle, pas encore utilisé (ticket Compléter intervention).
+- Ouverture de liens : `url_launcher`, validé et installé au ticket Détail intervention (2026-09-13) — `tel:` pour les appels, `https://.../maps/dir/` pour l'itinéraire.
+- Client HTTP : `http` (officiel Dart), en usage depuis le ticket service auth.
+- Gestion d'état : `flutter_riverpod`, en usage depuis le ticket Mes interventions.
 
 ---
 

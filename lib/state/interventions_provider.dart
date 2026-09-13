@@ -17,6 +17,12 @@ final interventionsAttribueesProvider = StreamProvider((ref) {
   return db.interventionDao.watchAttribuees();
 });
 
+/// US2.2/US2.3 : detail reactif d'une intervention par idServeur.
+final interventionParIdProvider = StreamProvider.family((ref, String idServeur) {
+  final db = ref.watch(databaseProvider);
+  return db.interventionDao.watchParId(idServeur);
+});
+
 /// US2.11 (volet pull). Meme instance tant que databaseProvider ne change pas.
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(databaseProvider);

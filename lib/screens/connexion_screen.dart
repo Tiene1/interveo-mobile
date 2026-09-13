@@ -2,20 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../services/api_client.dart';
 import '../services/auth_service.dart';
+import '../theme/design_tokens.dart';
 import 'mes_interventions_screen.dart';
-
-const _inkColor = Color(0xFF0F172A);
-const _textSoft = Color(0xFF475569);
-const _textWeak = Color(0xFF94A3B8);
-const _danger = Color(0xFFDC2626);
-const _lineStrong = Color(0xFFCBD5E1);
-const _line = Color(0xFFE2E8F0);
 
 /// Ecran de connexion (US4.1). Mene vers MesInterventionsScreen (US2.1)
 /// une fois la connexion reussie.
 class ConnexionScreen extends StatefulWidget {
   ConnexionScreen({super.key, AuthService? authService})
-      : authService = authService ?? AuthService();
+    : authService = authService ?? AuthService();
 
   final AuthService authService;
 
@@ -44,7 +38,10 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
     });
 
     try {
-      await widget.authService.connecter(_identifiantCtrl.text, _motDePasseCtrl.text);
+      await widget.authService.connecter(
+        _identifiantCtrl.text,
+        _motDePasseCtrl.text,
+      );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const MesInterventionsScreen()),
@@ -65,7 +62,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBF9), // --paper
+      backgroundColor: paper,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
@@ -79,7 +76,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
               const SizedBox(height: 8),
               const Text(
                 'Connectez-vous pour retrouver vos interventions du jour.',
-                style: TextStyle(fontSize: 14, color: _textSoft, height: 1.5),
+                style: TextStyle(fontSize: 14, color: textSoft, height: 1.5),
               ),
               const SizedBox(height: 32),
               _champ(
@@ -96,7 +93,11 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
               Center(
                 child: Text(
                   _texteAide(),
-                  style: const TextStyle(fontSize: 12, color: _textWeak, letterSpacing: 0.2),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: textWeak,
+                    letterSpacing: 0.2,
+                  ),
                 ),
               ),
             ],
@@ -116,21 +117,35 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 36),
       padding: const EdgeInsets.only(bottom: 20),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: _line))),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: line)),
+      ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.only(right: 10),
-            decoration: const BoxDecoration(border: Border(right: BorderSide(color: _lineStrong))),
+            decoration: const BoxDecoration(
+              border: Border(right: BorderSide(color: lineStrong)),
+            ),
             child: const Text(
               'SIM',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500, color: _inkColor, letterSpacing: -0.7),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: inkColor,
+                letterSpacing: -0.7,
+              ),
             ),
           ),
           const SizedBox(width: 10),
           const Text(
             'INTERVENTIONS',
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _textSoft, letterSpacing: 1.4),
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: textSoft,
+              letterSpacing: 1.4,
+            ),
           ),
         ],
       ),
@@ -140,9 +155,17 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
   Widget _kicker() {
     return const Row(
       children: [
-        SizedBox(width: 20, height: 1, child: ColoredBox(color: _inkColor)),
+        SizedBox(width: 20, height: 1, child: ColoredBox(color: inkColor)),
         SizedBox(width: 10),
-        Text('ESPACE TECHNICIEN', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _textSoft, letterSpacing: 1.6)),
+        Text(
+          'ESPACE TECHNICIEN',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: textSoft,
+            letterSpacing: 1.6,
+          ),
+        ),
       ],
     );
   }
@@ -150,31 +173,64 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
   Widget _titre() {
     return const Text.rich(
       TextSpan(
-        style: TextStyle(fontSize: 36, fontWeight: FontWeight.w400, color: _inkColor, height: 1.05, letterSpacing: -1),
+        style: TextStyle(
+          fontSize: 36,
+          fontWeight: FontWeight.w400,
+          color: inkColor,
+          height: 1.05,
+          letterSpacing: -1,
+        ),
         children: [
           TextSpan(text: 'Bon '),
-          TextSpan(text: 'retour.', style: TextStyle(fontStyle: FontStyle.italic)),
+          TextSpan(
+            text: 'retour.',
+            style: TextStyle(fontStyle: FontStyle.italic),
+          ),
         ],
       ),
     );
   }
 
-  Widget _champ({required String label, required TextEditingController controller, required Key key}) {
+  Widget _champ({
+    required String label,
+    required TextEditingController controller,
+    required Key key,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _textSoft, letterSpacing: 1.4)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: textSoft,
+            letterSpacing: 1.4,
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: _erreur != null ? _danger : _lineStrong))),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: _erreur != null ? danger : lineStrong),
+            ),
+          ),
           child: TextField(
             key: key,
             controller: controller,
             enabled: !_enCours,
             autocorrect: false,
-            decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
-            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: _inkColor),
+            decoration: const InputDecoration(
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: EdgeInsets.zero,
+            ),
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w500,
+              color: inkColor,
+            ),
           ),
         ),
       ],
@@ -185,11 +241,23 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('MOT DE PASSE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: _textSoft, letterSpacing: 1.4)),
+        const Text(
+          'MOT DE PASSE',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: textSoft,
+            letterSpacing: 1.4,
+          ),
+        ),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(border: Border(bottom: BorderSide(color: _erreur != null ? _danger : _lineStrong))),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: _erreur != null ? danger : lineStrong),
+            ),
+          ),
           child: Row(
             children: [
               Expanded(
@@ -198,14 +266,30 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
                   controller: _motDePasseCtrl,
                   enabled: !_enCours,
                   obscureText: !_motDePasseVisible,
-                  decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
-                  style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w500, color: _inkColor),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w500,
+                    color: inkColor,
+                  ),
                 ),
               ),
               IconButton(
                 key: const Key('boutonVisibiliteMotDePasse'),
-                icon: Icon(_motDePasseVisible ? Icons.visibility_off : Icons.visibility, size: 18, color: _textWeak),
-                onPressed: _enCours ? null : () => setState(() => _motDePasseVisible = !_motDePasseVisible),
+                icon: Icon(
+                  _motDePasseVisible ? Icons.visibility_off : Icons.visibility,
+                  size: 18,
+                  color: textWeak,
+                ),
+                onPressed: _enCours
+                    ? null
+                    : () => setState(
+                        () => _motDePasseVisible = !_motDePasseVisible,
+                      ),
               ),
             ],
           ),
@@ -220,10 +304,17 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline, size: 14, color: _danger),
+          const Icon(Icons.error_outline, size: 14, color: danger),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(message, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: _danger)),
+            child: Text(
+              message,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: danger,
+              ),
+            ),
           ),
         ],
       ),
@@ -238,8 +329,8 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
         key: const Key('boutonConnexion'),
         onPressed: _enCours ? null : _seConnecter,
         style: ElevatedButton.styleFrom(
-          backgroundColor: _inkColor,
-          disabledBackgroundColor: _inkColor.withValues(alpha: 0.7),
+          backgroundColor: inkColor,
+          disabledBackgroundColor: inkColor.withValues(alpha: 0.7),
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
         ),
@@ -250,7 +341,10 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
                   SizedBox(
                     width: 16,
                     height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   ),
                   SizedBox(width: 10),
                   Text('Vérification en cours…'),

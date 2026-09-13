@@ -26,6 +26,12 @@ class InterventionDao extends DatabaseAccessor<AppDatabase>
       (select(interventions)..where((i) => i.idServeur.equals(idServeur)))
           .getSingleOrNull();
 
+  /// US2.2/US2.3 : detail reactif d'une intervention (se met a jour si une
+  /// synchro modifie la ligne pendant que l'ecran est ouvert).
+  Stream<Intervention?> watchParId(String idServeur) =>
+      (select(interventions)..where((i) => i.idServeur.equals(idServeur)))
+          .watchSingleOrNull();
+
   Future<void> upsert(InterventionsCompanion intervention) =>
       into(interventions).insertOnConflictUpdate(intervention);
 
