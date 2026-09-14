@@ -261,4 +261,26 @@ void main() {
 
     await _videLeTimerDeFermeture(tester);
   });
+
+  testWidgets('le retour au premier plan relance la synchro', (tester) async {
+    final db = await _dbAvecInterventions([]);
+    var appels = 0;
+    final client = MockClient((request) async {
+      appels++;
+      return http.Response('[]', 200);
+    });
+
+    await tester.pumpWidget(_appAvecClient(db, client));
+    await tester.pumpAndSettle();
+    final appelsInitiaux = appels;
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pumpAndSettle();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(appels, appelsInitiaux + 1);
+
+    await _videLeTimerDeFermeture(tester);
+  });
 }

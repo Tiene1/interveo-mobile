@@ -17,11 +17,11 @@ enum _Onglet { toutes, planifiees, realisees }
 
 /// Ecran "Mes interventions" (US2.1). L'affichage lit uniquement la base
 /// locale, jamais le reseau directement : seule la synchro (bouton, tirer-
-/// pour-rafraichir, automatique a l'ouverture, ou retour de connectivite)
-/// parle a l'API et met a jour la base, ce qui fait reagir la liste. Encore
-/// absents (dependent de capacites non construites) : bandeau hors ligne,
-/// "Synchronise il y a X min" et nom du technicien (necessiteraient
-/// GET /auth/moi, explicitement opportuniste).
+/// pour-rafraichir, automatique a l'ouverture, retour de connectivite, ou
+/// retour au premier plan) parle a l'API et met a jour la base, ce qui fait
+/// reagir la liste. Encore absents (dependent de capacites non construites) :
+/// bandeau hors ligne, "Synchronise il y a X min" et nom du technicien
+/// (necessiteraient GET /auth/moi, explicitement opportuniste).
 class MesInterventionsScreen extends ConsumerStatefulWidget {
   const MesInterventionsScreen({super.key});
 
@@ -30,8 +30,8 @@ class MesInterventionsScreen extends ConsumerStatefulWidget {
       _MesInterventionsScreenState();
 }
 
-class _MesInterventionsScreenState
-    extends ConsumerState<MesInterventionsScreen> {
+class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
+    with WidgetsBindingObserver {
   _Onglet _onglet = _Onglet.toutes;
   bool _synchronisationEnCours = false;
   StreamSubscription<List<ConnectivityResult>>? _abonnementConnectivite;
@@ -48,12 +48,22 @@ class _MesInterventionsScreenState
     _abonnementConnectivite = Connectivity().onConnectivityChanged.listen(
       _surChangementConnectivite,
     );
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _abonnementConnectivite?.cancel();
     super.dispose();
+  }
+
+  /// Retour au premier plan (le technicien revient sur l'app apres etre alle
+  /// sur une autre, ex. l'appareil photo natif ou un appel telephonique) :
+  /// meme logique que la synchro automatique a l'ouverture de l'ecran.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _synchroniser();
   }
 
   /// `_etaitConnecte` demarre a true pour ne pas redeclencher une synchro
