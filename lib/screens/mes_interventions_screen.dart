@@ -19,9 +19,9 @@ enum _Onglet { toutes, planifiees, realisees }
 /// locale, jamais le reseau directement : seule la synchro (bouton, tirer-
 /// pour-rafraichir, automatique a l'ouverture, retour de connectivite, ou
 /// retour au premier plan) parle a l'API et met a jour la base, ce qui fait
-/// reagir la liste. Encore absents (dependent de capacites non construites) :
-/// "Synchronise il y a X min" et nom du technicien (necessiteraient
-/// GET /auth/moi, explicitement opportuniste).
+/// reagir la liste. Encore absent (dependent d'une capacite non construite) :
+/// nom du technicien (necessiterait GET /auth/moi, explicitement
+/// opportuniste).
 class MesInterventionsScreen extends ConsumerStatefulWidget {
   const MesInterventionsScreen({super.key});
 
@@ -37,6 +37,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   StreamSubscription<List<ConnectivityResult>>? _abonnementConnectivite;
   bool _etaitConnecte = true;
   bool _horsLigne = false;
+  DateTime? _derniereSynchro;
 
   @override
   void initState() {
@@ -97,6 +98,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     setState(() => _synchronisationEnCours = true);
     try {
       final conflits = await ref.read(syncServiceProvider).synchroniser();
+      if (mounted) setState(() => _derniereSynchro = DateTime.now());
       if (mounted && conflits > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -170,6 +172,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     return Column(
       children: [
         _entete(),
+        _metaSynchro(),
         if (_horsLigne) _bandeauHorsLigne(),
         _onglets(toutes.length, planifiees.length, realisees.length),
         Expanded(
@@ -222,6 +225,34 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
         ],
       ),
     );
+  }
+
+  /// US2.1 (dette technique) : heure de la derniere synchro reussie (push +
+  /// pull), pas persistee (reinitialisee a chaque ouverture d'ecran, qui
+  /// relance de toute facon une synchro automatique). Le nom du technicien
+  /// prevu a cote dans la maquette reste hors perimetre (GET /auth/moi).
+  Widget _metaSynchro() {
+    if (_derniereSynchro == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Text(
+        _texteDerniereSynchro(_derniereSynchro!),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: textWeak,
+          letterSpacing: 0.1,
+        ),
+      ),
+    );
+  }
+
+  String _texteDerniereSynchro(DateTime derniere) {
+    final ecart = DateTime.now().difference(derniere);
+    if (ecart.inMinutes < 1) return "Synchronisé à l'instant";
+    if (ecart.inHours < 1) return 'Synchronisé il y a ${ecart.inMinutes} min';
+    if (ecart.inDays < 1) return 'Synchronisé il y a ${ecart.inHours} h';
+    return 'Dernière synchro : ${formatDateHeure(derniere)}';
   }
 
   Widget _bandeauHorsLigne() {

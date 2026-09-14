@@ -210,6 +210,29 @@ void main() {
     },
   );
 
+  testWidgets("affiche 'Synchronise a l instant' juste apres une synchro reussie", (tester) async {
+    final db = await _dbAvecInterventions([]);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Synchronisé à l'instant"), findsOneWidget);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets("n affiche pas d indicateur de synchro si la synchro d ouverture echoue", (tester) async {
+    final db = await _dbAvecInterventions([]);
+    final client = MockClient((request) async => http.Response('{"message":"Erreur interne"}', 500));
+
+    await tester.pumpWidget(_appAvecClient(db, client));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Synchronisé'), findsNothing);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
   testWidgets('taper sur une tuile ouvre le detail de l intervention', (tester) async {
     final db = await _dbAvecInterventions([
       _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),
