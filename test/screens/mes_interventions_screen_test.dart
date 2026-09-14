@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sim_interventions/data/local_db.dart';
 import 'package:sim_interventions/models/enums.dart';
 import 'package:sim_interventions/screens/detail_intervention_screen.dart';
@@ -14,6 +18,21 @@ import 'package:sim_interventions/state/interventions_provider.dart';
 
 import '../support/app_test_scope.dart';
 import '../support/fake_token_storage.dart';
+
+/// Fausse implementation du canal de plateforme de connectivity_plus : evite
+/// le vrai canal (absent en test widget) et permet de simuler une coupure
+/// puis un retour de connexion via [controleur].
+class _ConnectivitePlateformeFausse extends ConnectivityPlatform
+    with MockPlatformInterfaceMixin {
+  final controleur = StreamController<List<ConnectivityResult>>.broadcast();
+
+  @override
+  Stream<List<ConnectivityResult>> get onConnectivityChanged => controleur.stream;
+
+  @override
+  Future<List<ConnectivityResult>> checkConnectivity() async =>
+      [ConnectivityResult.wifi];
+}
 
 InterventionsCompanion _intervention({
   required String idServeur,
@@ -74,6 +93,15 @@ Future<void> _videLeTimerDeFermeture(WidgetTester tester) async {
 }
 
 void main() {
+  late _ConnectivitePlateformeFausse connectivite;
+
+  setUp(() {
+    connectivite = _ConnectivitePlateformeFausse();
+    ConnectivityPlatform.instance = connectivite;
+  });
+
+  tearDown(() => connectivite.controleur.close());
+
   testWidgets("affiche l'etat vide quand aucune intervention n'est attribuee", (tester) async {
     final db = await _dbAvecInterventions([]);
 
@@ -188,6 +216,48 @@ void main() {
       find.text('Synchronisation impossible : Exception: panne reseau'),
       findsOneWidget,
     );
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('une reconnexion detectee apres une coupure relance la synchro', (tester) async {
+    final db = await _dbAvecInterventions([]);
+    var appels = 0;
+    final client = MockClient((request) async {
+      appels++;
+      return http.Response('[]', 200);
+    });
+
+    await tester.pumpWidget(_appAvecClient(db, client));
+    await tester.pumpAndSettle();
+    final appelsInitiaux = appels;
+
+    connectivite.controleur.add([ConnectivityResult.none]);
+    await tester.pumpAndSettle();
+    connectivite.controleur.add([ConnectivityResult.wifi]);
+    await tester.pumpAndSettle();
+
+    expect(appels, appelsInitiaux + 1);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('rester connecte sans coupure ne redeclenche pas de synchro', (tester) async {
+    final db = await _dbAvecInterventions([]);
+    var appels = 0;
+    final client = MockClient((request) async {
+      appels++;
+      return http.Response('[]', 200);
+    });
+
+    await tester.pumpWidget(_appAvecClient(db, client));
+    await tester.pumpAndSettle();
+    final appelsInitiaux = appels;
+
+    connectivite.controleur.add([ConnectivityResult.wifi]);
+    await tester.pumpAndSettle();
+
+    expect(appels, appelsInitiaux);
 
     await _videLeTimerDeFermeture(tester);
   });

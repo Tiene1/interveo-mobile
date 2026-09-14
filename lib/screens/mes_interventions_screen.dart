@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,11 +17,11 @@ enum _Onglet { toutes, planifiees, realisees }
 
 /// Ecran "Mes interventions" (US2.1). L'affichage lit uniquement la base
 /// locale, jamais le reseau directement : seule la synchro (bouton, tirer-
-/// pour-rafraichir, ou automatique a l'ouverture) parle a l'API et met a
-/// jour la base, ce qui fait reagir la liste. Encore absents (dependent
-/// de capacites non construites) : bandeau hors ligne (connectivity_plus
-/// pas encore branche), "Synchronise il y a X min" et nom du technicien
-/// (necessiteraient GET /auth/moi, explicitement opportuniste).
+/// pour-rafraichir, automatique a l'ouverture, ou retour de connectivite)
+/// parle a l'API et met a jour la base, ce qui fait reagir la liste. Encore
+/// absents (dependent de capacites non construites) : bandeau hors ligne,
+/// "Synchronise il y a X min" et nom du technicien (necessiteraient
+/// GET /auth/moi, explicitement opportuniste).
 class MesInterventionsScreen extends ConsumerStatefulWidget {
   const MesInterventionsScreen({super.key});
 
@@ -31,6 +34,8 @@ class _MesInterventionsScreenState
     extends ConsumerState<MesInterventionsScreen> {
   _Onglet _onglet = _Onglet.toutes;
   bool _synchronisationEnCours = false;
+  StreamSubscription<List<ConnectivityResult>>? _abonnementConnectivite;
+  bool _etaitConnecte = true;
 
   @override
   void initState() {
@@ -39,6 +44,28 @@ class _MesInterventionsScreenState
     // on attend le premier frame (addPostFrameCallback) avant de lancer la
     // synchro, qui met _synchronisationEnCours a jour via setState.
     WidgetsBinding.instance.addPostFrameCallback((_) => _synchroniser());
+
+    _abonnementConnectivite = Connectivity().onConnectivityChanged.listen(
+      _surChangementConnectivite,
+    );
+  }
+
+  @override
+  void dispose() {
+    _abonnementConnectivite?.cancel();
+    super.dispose();
+  }
+
+  /// `_etaitConnecte` demarre a true pour ne pas redeclencher une synchro
+  /// des le premier evenement (qui reflete l'etat courant a l'abonnement,
+  /// generalement deja connecte) : seul un vrai retour de connexion, apres
+  /// une coupure detectee, doit relancer une synchro automatique.
+  void _surChangementConnectivite(List<ConnectivityResult> resultats) {
+    final connecte = !resultats.contains(ConnectivityResult.none);
+    if (connecte && !_etaitConnecte) {
+      _synchroniser();
+    }
+    _etaitConnecte = connecte;
   }
 
   Future<void> _synchroniser() async {
