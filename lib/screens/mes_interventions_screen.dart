@@ -203,14 +203,23 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     Set<String> idsAvecPhotosEnAttente,
     Set<String> idsAvecPhotosEnConflit,
   ) {
+    // "Planifiees" reste trie par date prevue croissante (prochaine echeance
+    // en premier, source directe de watchAttribuees()) : c'est ce qui rend
+    // une nouvelle intervention visible en premiere ligne des sa reception,
+    // demande confirmee par Cedric. "Toutes" et "Realisees" sont inversees
+    // en decroissant (le plus recent en premier, comme un flux d'activite) :
+    // en ordre croissant, une intervention fraichement assignee se
+    // retrouvait derriere tout l'historique realise (dates passees),
+    // invisible sans faire defiler jusqu'en bas.
     final planifiees = toutes
         .where((i) => i.statut == StatutIntervention.planifiee)
         .toList();
-    final realisees = toutes
+    final toutesRecentDabord = toutes.reversed.toList();
+    final realisees = toutesRecentDabord
         .where((i) => i.statut == StatutIntervention.realisee)
         .toList();
     final affichees = switch (_onglet) {
-      _Onglet.toutes => toutes,
+      _Onglet.toutes => toutesRecentDabord,
       _Onglet.planifiees => planifiees,
       _Onglet.realisees => realisees,
     };

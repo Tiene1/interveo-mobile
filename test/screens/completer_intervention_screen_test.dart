@@ -236,6 +236,64 @@ void main() {
   );
 
   testWidgets(
+    'cloturer redirige jusqu a l ecran racine, pas seulement l ecran precedent',
+    (tester) async {
+      final db = await _dbAvec(_intervention(
+        problemeConstate: 'Climatiseur en panne',
+        travauxRealises: 'Filtre nettoye',
+      ));
+      final client = MockClient((request) async => http.Response('[]', 200));
+      final navigatorKey = GlobalKey<NavigatorState>();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            syncServiceProvider.overrideWithValue(
+              SyncService(
+                interventionDao: db.interventionDao,
+                photoDao: db.photoDao,
+                apiClient: ApiClient(client: client),
+                tokenStorage: FakeTokenStorage(),
+              ),
+            ),
+          ],
+          child: MaterialApp(
+            navigatorKey: navigatorKey,
+            home: const Scaffold(body: Center(child: Text('Mes interventions (racine)'))),
+          ),
+        ),
+      );
+
+      // Simule la pile reelle Detail -> Completer, deux niveaux au-dessus de
+      // la racine (Mes interventions).
+      navigatorKey.currentState!.push(
+        MaterialPageRoute(
+          builder: (_) => const Scaffold(body: Center(child: Text('Detail (ecran intermediaire)'))),
+        ),
+      );
+      await tester.pumpAndSettle();
+      navigatorKey.currentState!.push(
+        MaterialPageRoute(builder: (_) => const CompleterInterventionScreen(idServeur: 'i-1')),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('boutonCloturer')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('boutonConfirmerCloture')));
+      await tester.pumpAndSettle();
+
+      // Demande de Cedric le 2026-09-14 : retour direct a "Mes interventions",
+      // pas seulement a l'ecran precedent (Detail).
+      expect(find.text('Mes interventions (racine)'), findsOneWidget);
+      expect(find.text('Detail (ecran intermediaire)'), findsNothing);
+      expect(find.byType(CompleterInterventionScreen), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
     'cloturer juste apres une frappe rapide n efface pas probleme/travaux '
     '(piege de course avec l anti-rebond)',
     (tester) async {

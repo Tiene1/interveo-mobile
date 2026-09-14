@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../data/dao/intervention_dao.dart';
 import '../data/local_db.dart';
 import '../models/enums.dart';
+import '../services/sync_service.dart';
 import '../state/interventions_provider.dart';
 import '../theme/design_tokens.dart';
 import '../utils/date.dart';
@@ -141,17 +142,35 @@ class _CompleterInterventionScreenState
     final dao = ref.read(databaseProvider).interventionDao;
     await dao.cloturer(widget.idServeur, dateRealisation: DateTime.now());
 
+    // Capture avant toute navigation : ref devient invalide une fois le
+    // widget demonte (piege Riverpod deja documente sur ce projet - "Using
+    // ref when a widget is about to or has been unmounted is unsafe").
+    final syncService = ref.read(syncServiceProvider);
+
+    // Retour direct a "Mes interventions" (US demandee par Cedric le
+    // 2026-09-14 : le technicien ne doit pas rester sur l'ecran ni repasser
+    // par le detail). popUntil(isFirst) plutot que deux pop() : robuste a la
+    // profondeur de la pile (Detail -> Completer aujourd'hui), pas fragile
+    // si un ecran intermediaire change plus tard.
+    if (mounted) {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+
     // Tentative de synchro immediate (push + pull), opportuniste : si
-    // l'appareil est deja connecte, la cloture part sans attendre un retour
-    // sur "Mes interventions" ou un appui manuel sur le bouton de synchro
-    // (constat reel Cedric le 2026-09-14). Jamais bloquant pour l'ecran (deja
-    // ferme en lecture seule a ce stade) : une erreur (hors ligne, serveur
-    // injoignable...) est ignoree ici, "Mes interventions" reprend le relais
-    // via ses propres declencheurs (ouverture, connectivite retablie...).
+    // l'appareil est deja connecte, la cloture part sans attendre un appui
+    // manuel sur le bouton de synchro (constat reel Cedric le 2026-09-14).
+    // Declenchee apres la navigation, sans l'attendre : ne doit jamais
+    // retarder le retour a la liste. Erreur ignoree (hors ligne, serveur
+    // injoignable...) : "Mes interventions" reprend le relais via ses
+    // propres declencheurs.
+    unawaited(_synchroniserSansAttendre(syncService));
+  }
+
+  Future<void> _synchroniserSansAttendre(SyncService service) async {
     try {
-      await ref.read(syncServiceProvider).synchroniser();
+      await service.synchroniser();
     } catch (_) {
-      // Volontairement silencieux, cf. commentaire ci-dessus.
+      // Volontairement silencieux, cf. commentaire dans _demanderCloture().
     }
   }
 

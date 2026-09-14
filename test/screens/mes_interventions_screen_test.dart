@@ -146,26 +146,84 @@ void main() {
     await _videLeTimerDeFermeture(tester);
   });
 
-  testWidgets('affiche les interventions non annulees triees par date prevue', (tester) async {
-    final db = await _dbAvecInterventions([
-      _intervention(idServeur: 'i-tard', nomClient: 'Client Tard', datePrevue: DateTime(2026, 9, 20, 14)),
-      _intervention(idServeur: 'i-tot', nomClient: 'Client Tot', datePrevue: DateTime(2026, 9, 12, 9)),
-      _intervention(idServeur: 'i-annulee', nomClient: 'Client Annule', datePrevue: DateTime(2026, 9, 15, 10), statut: StatutIntervention.annulee),
-    ]);
+  testWidgets(
+    "l onglet Toutes n affiche pas les annulees et met la plus recente en premier",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(idServeur: 'i-tard', nomClient: 'Client Tard', datePrevue: DateTime(2026, 9, 20, 14)),
+        _intervention(idServeur: 'i-tot', nomClient: 'Client Tot', datePrevue: DateTime(2026, 9, 12, 9)),
+        _intervention(idServeur: 'i-annulee', nomClient: 'Client Annule', datePrevue: DateTime(2026, 9, 15, 10), statut: StatutIntervention.annulee),
+      ]);
 
-    await tester.pumpWidget(_app(db));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
 
-    expect(find.text('Client Tot'), findsOneWidget);
-    expect(find.text('Client Tard'), findsOneWidget);
-    expect(find.text('Client Annule'), findsNothing);
+      expect(find.text('Client Tot'), findsOneWidget);
+      expect(find.text('Client Tard'), findsOneWidget);
+      expect(find.text('Client Annule'), findsNothing);
 
-    final positionTot = tester.getTopLeft(find.text('Client Tot')).dy;
-    final positionTard = tester.getTopLeft(find.text('Client Tard')).dy;
-    expect(positionTot, lessThan(positionTard));
+      // "Toutes" : la plus recente en premier (constat Cedric le 2026-09-14 :
+      // une intervention fraichement assignee doit etre visible sans avoir a
+      // faire defiler jusqu'en bas de l'historique).
+      final positionTot = tester.getTopLeft(find.text('Client Tot')).dy;
+      final positionTard = tester.getTopLeft(find.text('Client Tard')).dy;
+      expect(positionTard, lessThan(positionTot));
 
-    await _videLeTimerDeFermeture(tester);
-  });
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
+    "l onglet Planifiees garde la prochaine echeance en premier",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(idServeur: 'i-tard', nomClient: 'Client Tard', datePrevue: DateTime(2026, 9, 20, 14)),
+        _intervention(idServeur: 'i-tot', nomClient: 'Client Tot', datePrevue: DateTime(2026, 9, 12, 9)),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Planifiées'));
+      await tester.pumpAndSettle();
+
+      final positionTot = tester.getTopLeft(find.text('Client Tot')).dy;
+      final positionTard = tester.getTopLeft(find.text('Client Tard')).dy;
+      expect(positionTot, lessThan(positionTard));
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
+    "l onglet Realisees met la plus recemment realisee en premier",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(
+          idServeur: 'i-tard',
+          nomClient: 'Client Tard',
+          datePrevue: DateTime(2026, 9, 20, 14),
+          statut: StatutIntervention.realisee,
+        ),
+        _intervention(
+          idServeur: 'i-tot',
+          nomClient: 'Client Tot',
+          datePrevue: DateTime(2026, 9, 12, 9),
+          statut: StatutIntervention.realisee,
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Réalisées'));
+      await tester.pumpAndSettle();
+
+      final positionTot = tester.getTopLeft(find.text('Client Tot')).dy;
+      final positionTard = tester.getTopLeft(find.text('Client Tard')).dy;
+      expect(positionTard, lessThan(positionTot));
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
 
   testWidgets('les onglets filtrent par statut avec le bon compte', (tester) async {
     final db = await _dbAvecInterventions([
