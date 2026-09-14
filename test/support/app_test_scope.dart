@@ -30,6 +30,7 @@ Widget appTest({
       syncServiceProvider.overrideWithValue(
         SyncService(
           interventionDao: base.interventionDao,
+          photoDao: base.photoDao,
           apiClient: ApiClient(client: client),
           tokenStorage: FakeTokenStorage(),
         ),

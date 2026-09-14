@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show MediaType;
 
 import '../config/env.dart';
 
@@ -70,6 +72,32 @@ class ApiClient {
     );
     _leverSiErreur(reponse);
     return reponse.body.isEmpty ? [] : jsonDecode(reponse.body) as List<dynamic>;
+  }
+
+  /// Envoi multipart (ex. POST /interventions/:id/photos) : [champs] pour
+  /// les valeurs texte du formulaire, [fichier] pour le fichier binaire.
+  Future<Map<String, dynamic>> postFichier(
+    String chemin, {
+    required String champFichier,
+    required File fichier,
+    required MediaType typeFichier,
+    Map<String, String> champs = const {},
+    String? jeton,
+  }) async {
+    final requete = http.MultipartRequest('POST', Uri.parse('$apiBaseUrl$chemin'))
+      ..fields.addAll(champs)
+      ..files.add(
+        await http.MultipartFile.fromPath(
+          champFichier,
+          fichier.path,
+          contentType: typeFichier,
+        ),
+      );
+    if (jeton != null) requete.headers['Authorization'] = 'Bearer $jeton';
+
+    final reponseFlux = await _client.send(requete);
+    final reponse = await http.Response.fromStream(reponseFlux);
+    return _traiterReponse(reponse);
   }
 
   Map<String, String> _entetes(String? jeton) => {

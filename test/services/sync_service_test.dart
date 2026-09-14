@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -67,6 +69,7 @@ void main() {
     final client = MockClient((request) async => http.Response('[$_interventionJson]', 200));
     final service = SyncService(
       interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
       apiClient: ApiClient(client: client),
       tokenStorage: FakeTokenStorage(),
     );
@@ -103,6 +106,7 @@ void main() {
     });
     final service = SyncService(
       interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
       apiClient: ApiClient(client: client),
       tokenStorage: FakeTokenStorage(),
     );
@@ -120,6 +124,7 @@ void main() {
     });
     final service = SyncService(
       interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
       apiClient: ApiClient(client: client),
       tokenStorage: FakeTokenStorage(),
     );
@@ -133,6 +138,7 @@ void main() {
     final client = MockClient((request) async => http.Response('{"message":"non autorise"}', 401));
     final service = SyncService(
       interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
       apiClient: ApiClient(client: client),
       tokenStorage: FakeTokenStorage(),
     );
@@ -168,6 +174,7 @@ void main() {
     });
     final service = SyncService(
       interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
       apiClient: ApiClient(client: client),
       tokenStorage: FakeTokenStorage(),
     );
@@ -188,6 +195,7 @@ void main() {
     });
     final service = SyncService(
       interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
       apiClient: ApiClient(client: client),
       tokenStorage: FakeTokenStorage(),
     );
@@ -210,6 +218,7 @@ void main() {
     );
     final service = SyncService(
       interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
       apiClient: ApiClient(client: client),
       tokenStorage: FakeTokenStorage(),
     );
@@ -235,6 +244,7 @@ void main() {
     });
     final service = SyncService(
       interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
       apiClient: ApiClient(client: client),
       tokenStorage: FakeTokenStorage(),
     );
@@ -245,5 +255,116 @@ void main() {
     final intervention = await db.interventionDao.parId('i-1');
     expect(intervention!.statut, StatutIntervention.annulee);
     expect(intervention.statutSync, StatutSync.confirme);
+  });
+
+  Future<File> creerFichierTemp() async {
+    final fichier = File(
+      '${Directory.systemTemp.path}/sync_service_test_${DateTime.now().microsecondsSinceEpoch}.jpg',
+    );
+    await fichier.writeAsBytes([0, 1, 2, 3]);
+    return fichier;
+  }
+
+  Future<int> seedePhotoLocale(AppDatabase db, {required String cheminLocal}) {
+    return db.photoDao.ajouter(PhotosCompanion.insert(
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.avant,
+      cheminLocal: cheminLocal,
+      statutSync: StatutSync.local,
+    ));
+  }
+
+  test('pousserPhotos n appelle pas le reseau si rien a pousser', () async {
+    var appele = false;
+    final client = MockClient((request) async {
+      appele = true;
+      return http.Response('[]', 200);
+    });
+    final service = SyncService(
+      interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
+      apiClient: ApiClient(client: client),
+      tokenStorage: FakeTokenStorage(),
+    );
+
+    final echecs = await service.pousserPhotos();
+
+    expect(echecs, 0);
+    expect(appele, isFalse);
+  });
+
+  test('pousserPhotos envoie chaque photo locale et marque confirme avec l idServeur', () async {
+    await seedeClotureLocale(db);
+    final fichier = await creerFichierTemp();
+    addTearDown(() => fichier.delete());
+    await seedePhotoLocale(db, cheminLocal: fichier.path);
+
+    final client = MockClient((request) async {
+      expect(request.method, 'POST');
+      expect(request.url.path, '/interventions/i-1/photos');
+      return http.Response('{"id":"p-serveur-1"}', 201);
+    });
+    final service = SyncService(
+      interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
+      apiClient: ApiClient(client: client),
+      tokenStorage: FakeTokenStorage(),
+    );
+
+    final echecs = await service.pousserPhotos();
+
+    expect(echecs, 0);
+    final photos = await db.photoDao.listerPourIntervention('i-1');
+    expect(photos.single.idServeur, 'p-serveur-1');
+    expect(photos.single.statutSync, StatutSync.confirme);
+  });
+
+  test('pousserPhotos compte un 409 comme echec sans arreter les photos suivantes', () async {
+    await seedeClotureLocale(db);
+    final fichier1 = await creerFichierTemp();
+    final fichier2 = await creerFichierTemp();
+    addTearDown(() => fichier1.delete());
+    addTearDown(() => fichier2.delete());
+    await seedePhotoLocale(db, cheminLocal: fichier1.path);
+    await seedePhotoLocale(db, cheminLocal: fichier2.path);
+
+    var appels = 0;
+    final client = MockClient((request) async {
+      appels++;
+      if (appels == 1) {
+        return http.Response('{"message":"Maximum 2 photos AVANT par intervention"}', 409);
+      }
+      return http.Response('{"id":"p-serveur-2"}', 201);
+    });
+    final service = SyncService(
+      interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
+      apiClient: ApiClient(client: client),
+      tokenStorage: FakeTokenStorage(),
+    );
+
+    final echecs = await service.pousserPhotos();
+
+    expect(echecs, 1);
+    expect(appels, 2);
+    final photos = await db.photoDao.listerPourIntervention('i-1');
+    expect(photos.where((p) => p.statutSync == StatutSync.confirme), hasLength(1));
+  });
+
+  test('pousserPhotos propage une erreur autre que 409', () async {
+    await seedeClotureLocale(db);
+    final fichier = await creerFichierTemp();
+    addTearDown(() => fichier.delete());
+    await seedePhotoLocale(db, cheminLocal: fichier.path);
+
+    final client = MockClient((request) async => http.Response('{"message":"non autorise"}', 401));
+    final service = SyncService(
+      interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
+      apiClient: ApiClient(client: client),
+      tokenStorage: FakeTokenStorage(),
+    );
+
+    await expectLater(service.pousserPhotos(), throwsA(isA<ApiException>()));
   });
 }

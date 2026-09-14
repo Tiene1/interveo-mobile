@@ -50,3 +50,14 @@ TypeEquipement? typeEquipementDepuisServeur(String? valeur) {
       throw ArgumentError('Type equipement inconnu : $valeur');
   }
 }
+
+/// Sens inverse (mobile -> serveur), utilise par sync_service.dart pour
+/// l'envoi d'une photo (POST /interventions/:id/photos).
+String categoriePhotoVersServeur(CategoriePhoto categorie) {
+  switch (categorie) {
+    case CategoriePhoto.avant:
+      return 'AVANT';
+    case CategoriePhoto.apres:
+      return 'APRES';
+  }
+}

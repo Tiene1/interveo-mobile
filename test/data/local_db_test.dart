@@ -117,4 +117,40 @@ void main() {
     final intervention = await db.interventionDao.parId('i-1');
     expect(intervention!.statutSync, StatutSync.confirme);
   });
+
+  test('photoDao.listerAPousser renvoie uniquement les photos locales', () async {
+    await db.interventionDao.upsert(interventionExemple());
+    await db.photoDao.ajouter(PhotosCompanion.insert(
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.avant,
+      cheminLocal: '/donnees/locale.jpg',
+      statutSync: StatutSync.local,
+    ));
+    await db.photoDao.ajouter(PhotosCompanion.insert(
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.apres,
+      cheminLocal: '/donnees/confirmee.jpg',
+      statutSync: StatutSync.confirme,
+    ));
+
+    final aPousser = await db.photoDao.listerAPousser();
+
+    expect(aPousser.map((p) => p.cheminLocal), ['/donnees/locale.jpg']);
+  });
+
+  test('photoDao.marquerConfirmee enregistre l idServeur et passe a confirme', () async {
+    await db.interventionDao.upsert(interventionExemple());
+    final idLocal = await db.photoDao.ajouter(PhotosCompanion.insert(
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.avant,
+      cheminLocal: '/donnees/locale.jpg',
+      statutSync: StatutSync.local,
+    ));
+
+    await db.photoDao.marquerConfirmee(idLocal, 'p-serveur-1');
+
+    final photos = await db.photoDao.listerPourIntervention('i-1');
+    expect(photos.single.idServeur, 'p-serveur-1');
+    expect(photos.single.statutSync, StatutSync.confirme);
+  });
 }

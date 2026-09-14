@@ -57,13 +57,13 @@ mobile/
       api_client.dart             (wrapper réseau, ajoute le JWT, base = config API_URL)
       auth_service.dart           (login, stockage sécurisé du JWT, lecture au démarrage)
       token_storage.dart          (abstraction testable sur flutter_secure_storage)
-      sync_service.dart           (US2.11 : pull + push des clotures ; push des photos pas encore, cf. section 4)
+      sync_service.dart           (US2.11 : pull + push des clotures + push des photos, cf. section 4)
       photo_stockage_service.dart (US2.7/US2.8 : capture image_picker + copie dans le stockage permanent de l'app)
     data/
       local_db.dart               (base locale : tables intervention et photo + champs de synchro)
       dao/
         intervention_dao.dart     (watchAttribuees, watchParId, mettreAJourSaisie, cloturer, listerAPousser, marquerConfirmee, derniereMiseAJour)
-        photo_dao.dart            (watchPourIntervention, listerPourIntervention, ajouter, supprimer)
+        photo_dao.dart            (watchPourIntervention, listerPourIntervention, ajouter, supprimer, listerAPousser, marquerConfirmee)
     state/
       interventions_provider.dart (Riverpod : databaseProvider, liste attribuee US2.1, detail par id US2.2/US2.3, photos par intervention US2.7/US2.8, syncServiceProvider, photoStockageServiceProvider)
     theme/
@@ -115,7 +115,7 @@ Déclenchée au retour de connectivité, au passage de l'app au premier plan, ou
 
 **Push des clotures implémenté (2026-09-14)** : `SyncService.pousserInterventions()` envoie `POST /sync/interventions` pour chaque intervention `statutSync = LOCAL` **et** `statut = REALISEE` (`InterventionDao.listerAPousser()` — une intervention seulement en cours de saisie, encore PLANIFIEE, n'a pas d'endpoint serveur pour une sauvegarde partielle et n'est donc jamais poussée). Ne fait aucun appel reseau si rien a pousser. Par resultat : `CONFIRME` marque la ligne `statutSync = CONFIRME` (`InterventionDao.marquerConfirmee()`) ; `CONFLIT` ne touche pas la ligne localement. `SyncService.synchroniser()` (nouvelle orchestration, appelee par le bouton/tirer-pour-rafraichir/ouverture de `MesInterventionsScreen` a la place de `tirerInterventions()` seul) pousse puis re-tire systematiquement : le pull qui suit un conflit **ecrase** la ligne locale avec l'etat serveur (upsert), ce qui applique naturellement la regle "l'annulation du directeur gagne" sans logique de resolution dediee. Le technicien est prevenu par un `SnackBar` (`MesInterventionsScreen`) si `synchroniser()` renvoie au moins un conflit.
 
-Hors perimetre (ticket a part) : push des photos (`POST /interventions/:id/photos`), qui reste independant — chaque `Photo` garde son propre `statutSync`, jamais agrege dans le badge de l'intervention.
+**Push des photos implémenté (2026-09-14)** : `SyncService.pousserPhotos()` envoie `POST /interventions/:id/photos` (multipart, `ApiClient.postFichier()`) pour chaque `Photo` `statutSync = LOCAL`, une par une. Succès : `PhotoDao.marquerConfirmee()` enregistre l'`idServeur` renvoyé et passe `statutSync = CONFIRME`. Un **409** (deja 2 photos de cette categorie côté serveur — ex. retentative après un crash juste après un upload reussi) est compté comme échec sans arrêter les photos suivantes ; toute autre erreur (réseau, 401...) remonte et interrompt la boucle. Chaque `Photo` garde son propre `statutSync`, jamais agrégé dans le badge de l'intervention (dette technique mineure assumée : pas d'indicateur visuel si des photos restent à synchroniser). Type MIME déduit de l'extension du fichier local (jpg/jpeg/png/webp), `image/jpeg` par défaut. Appelé par `SyncService.synchroniser()` juste après le push des clôtures, avant le pull final.
 
 ### Saisie au fil de l'eau (US2.9) — implémenté le 2026-09-13
 - `InterventionDao.mettreAJourSaisie()` : chaque textarea a son propre anti-rebond (`Timer` 400 ms) sur `CompleterInterventionScreen`, écrit dans la base locale des que l'utilisateur arrete de taper, marque `statutSync = LOCAL`. Pas de bouton Enregistrer. À la réouverture, les valeurs saisies sont présentes (relues depuis la base au premier chargement de l'écran, jamais réécrasées ensuite par le flux réactif pour ne pas entrer en conflit avec la saisie en cours).
@@ -131,7 +131,7 @@ Hors perimetre (ticket a part) : push des photos (`POST /interventions/:id/photo
 - Maximum 2 photos par catégorie (avant/après), vérifié côté écran : le bouton « Ajouter » disparaît au-delà. Retrait possible (bouton croix) tant que l'intervention n'est pas clôturée, via `PhotoDao.supprimer()` + suppression best-effort du fichier local (`PhotoStockageService.supprimerFichier()`). Une fois clôturée, les photos s'affichent en lecture seule, sans bouton Ajouter ni Supprimer.
 - Écart visuel assumé par rapport à la maquette `M4 - Completer intervention.html` : bordure pleine au lieu de pointillée sur le bouton « Ajouter » (pas de support natif pour les bordures en pointillés sans `CustomPainter` dédié) — dette technique mineure, purement esthétique.
 - `PhotoDao.listerPourIntervention()` (lecture ponctuelle, ajoutée à ce ticket) complète `watchPourIntervention()` (flux réactif, utilisé par l'écran) : une nouvelle souscription `.watch()` programme un timer interne (issue connue simolus3/drift#3323, déjà documentée pour les écrans) qui ne se résout, en test widget, qu'avec un `pump()` supplémentaire — un aller simple évite le problème pour les vérifications ponctuelles dans les tests.
-- Hors périmètre (ticket à part) : envoi des photos au serveur (`POST /interventions/:id/photos`), qui fait partie du volet push de la synchro non encore construit.
+- Envoi des photos au serveur : voir "Push des photos" dans la section Synchronisation (US2.11) ci-dessus.
 
 ### Google Maps et téléphone (US2.3)
 - La géolocalisation ouvre Google Maps via `url_launcher` (`https://www.google.com/maps/dir/?api=1&destination=...` ou `geo:`). Si la géolocalisation est vide, seule l'adresse texte s'affiche.
@@ -156,6 +156,7 @@ Conformément à `FLUTTER_BEST_PRACTICES.md` §7, chaque package fait l'objet d'
 - Ouverture de liens : `url_launcher`, validé et installé au ticket Détail intervention (2026-09-13) — `tel:` pour les appels, `https://.../maps/dir/` pour l'itinéraire.
 - Client HTTP : `http` (officiel Dart), en usage depuis le ticket service auth.
 - Gestion d'état : `flutter_riverpod`, en usage depuis le ticket Mes interventions.
+- Types MIME multipart : `http_parser`, validé le 2026-09-14 — dépendance transitive de `http` (aucun téléchargement supplémentaire), déclarée explicitement pour la classe `MediaType` (upload de photos, `ApiClient.postFichier()`).
 
 ---
 

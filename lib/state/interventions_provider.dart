@@ -24,10 +24,10 @@ final interventionParIdProvider = StreamProvider.family((ref, String idServeur) 
   return db.interventionDao.watchParId(idServeur);
 });
 
-/// US2.11 (volet pull). Meme instance tant que databaseProvider ne change pas.
+/// US2.11. Meme instance tant que databaseProvider ne change pas.
 final syncServiceProvider = Provider<SyncService>((ref) {
   final db = ref.watch(databaseProvider);
-  return SyncService(interventionDao: db.interventionDao);
+  return SyncService(interventionDao: db.interventionDao, photoDao: db.photoDao);
 });
 
 /// US2.7/US2.8 : photos (avant et apres confondues, filtrees cote ecran).

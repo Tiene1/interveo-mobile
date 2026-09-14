@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../../models/enums.dart';
 import '../local_db.dart';
 
 part 'photo_dao.g.dart';
@@ -30,4 +31,21 @@ class PhotoDao extends DatabaseAccessor<AppDatabase> with _$PhotoDaoMixin {
 
   Future<void> supprimer(int idLocal) =>
       (delete(photos)..where((p) => p.idLocal.equals(idLocal))).go();
+
+  /// US2.11 (volet push photos) : photos locales pretes a etre envoyees.
+  Future<List<Photo>> listerAPousser() {
+    return (select(
+      photos,
+    )..where((p) => p.statutSync.equalsValue(StatutSync.local))).get();
+  }
+
+  /// Photo confirmee par le serveur : idServeur recu + statutSync confirme.
+  Future<void> marquerConfirmee(int idLocal, String idServeur) {
+    return (update(photos)..where((p) => p.idLocal.equals(idLocal))).write(
+      PhotosCompanion(
+        idServeur: Value(idServeur),
+        statutSync: const Value(StatutSync.confirme),
+      ),
+    );
+  }
 }
