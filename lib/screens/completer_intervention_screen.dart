@@ -54,31 +54,37 @@ class _CompleterInterventionScreenState
   @override
   void dispose() {
     _flushSaisieEnAttente();
-    _debounceProbleme?.cancel();
-    _debounceTravaux?.cancel();
     _problemeCtrl.dispose();
     _travauxCtrl.dispose();
     super.dispose();
   }
 
-  /// Si l'utilisateur quitte l'ecran dans les 400 ms suivant sa derniere
-  /// frappe, l'anti-rebond n'a pas encore ecrit ce dernier fragment : on le
-  /// force ici. Ecriture fire-and-forget (dispose() est synchrone) : sans
-  /// risque, AppDatabase est un singleton garde par databaseProvider, jamais
-  /// dispose avec cet ecran.
-  void _flushSaisieEnAttente() {
+  /// Si moins de 400 ms se sont ecoulees depuis la derniere frappe, l'anti-
+  /// rebond n'a pas encore ecrit ce dernier fragment : on le force ici.
+  /// Utilisee a la fois par [dispose] (fire-and-forget, synchrone, sans
+  /// risque : `AppDatabase` est un singleton garde par `databaseProvider`,
+  /// jamais dispose avec cet ecran) et par [_demanderCloture] (`await`ee,
+  /// pour garantir que `problemeConstate`/`travauxRealises` sont bien en
+  /// base avant de cloturer - cf. bug reel diagnostique le 2026-09-14 :
+  /// une cloture juste apres une frappe rapide pouvait passer `statut` a
+  /// REALISEE avec ces deux champs encore vides en base).
+  Future<void> _flushSaisieEnAttente() async {
+    final ecritures = <Future<void>>[];
     if (_debounceProbleme?.isActive ?? false) {
-      _interventionDao.mettreAJourSaisie(
+      _debounceProbleme!.cancel();
+      ecritures.add(_interventionDao.mettreAJourSaisie(
         widget.idServeur,
         problemeConstate: Value(_problemeCtrl.text),
-      );
+      ));
     }
     if (_debounceTravaux?.isActive ?? false) {
-      _interventionDao.mettreAJourSaisie(
+      _debounceTravaux!.cancel();
+      ecritures.add(_interventionDao.mettreAJourSaisie(
         widget.idServeur,
         travauxRealises: Value(_travauxCtrl.text),
-      );
+      ));
     }
+    await Future.wait(ecritures);
   }
 
   void _initialiserControleurs(Intervention data) {
@@ -131,6 +137,7 @@ class _CompleterInterventionScreenState
     );
     if (confirme != true) return;
 
+    await _flushSaisieEnAttente();
     final dao = ref.read(databaseProvider).interventionDao;
     await dao.cloturer(widget.idServeur, dateRealisation: DateTime.now());
   }

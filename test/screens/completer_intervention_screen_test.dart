@@ -175,6 +175,50 @@ void main() {
     await _videLeTimerDeFermeture(tester);
   });
 
+  testWidgets(
+    'cloturer juste apres une frappe rapide n efface pas probleme/travaux '
+    '(piege de course avec l anti-rebond)',
+    (tester) async {
+      final db = await _dbAvec(_intervention());
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Climatiseur en panne');
+      await tester.enterText(find.byType(TextField).last, 'Filtre nettoye');
+      await tester.pump();
+
+      // Tape sur Cloturer bien avant les 400ms de l'anti-rebond : reproduit
+      // le bug reel diagnostique le 2026-09-14 (intervention "Nissi Bat
+      // Service", passee REALISEE avec probleme/travaux vides en base, cause
+      // d'un 400 bloquant toute la synchro). Le budget de temps ci-dessous
+      // (~300ms cumules) reste sous les 400ms pour garder l'anti-rebond en
+      // attente jusqu'a la confirmation.
+      // Pumps a duree fixe uniquement (jamais pumpAndSettle) : settle() ferait
+      // avancer l'horloge simulee par pas de 100ms jusqu'a stabilisation et
+      // declencherait lui-meme l'anti-rebond, masquant la regression testee.
+      await tester.tap(find.byKey(const Key('boutonCloturer')));
+      await tester.pump();
+      // 250ms : duree par defaut de l'animation d'ouverture du bottom sheet
+      // Material, necessaire pour qu'il finisse de glisser a l'ecran et
+      // devienne cliquable (sinon tap() rate le widget, encore hors-cadre).
+      await tester.pump(const Duration(milliseconds: 250));
+
+      expect(find.text('Clôturer cette intervention ?'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('boutonConfirmerCloture')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final intervention = await db.interventionDao.parId('i-1');
+      expect(intervention!.statut, StatutIntervention.realisee);
+      expect(intervention.problemeConstate, 'Climatiseur en panne');
+      expect(intervention.travauxRealises, 'Filtre nettoye');
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
   testWidgets('Retour dans la modale annule la cloture', (tester) async {
     final db = await _dbAvec(_intervention(
       problemeConstate: 'Climatiseur en panne',
