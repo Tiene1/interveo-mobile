@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../data/dao/intervention_dao.dart';
 import '../data/local_db.dart';
 import '../models/enums.dart';
 import '../state/interventions_provider.dart';
@@ -37,21 +38,47 @@ class _CompleterInterventionScreenState
   Timer? _debounceProbleme;
   Timer? _debounceTravaux;
   bool _enregistreRecemment = false;
+  late final InterventionDao _interventionDao;
 
   @override
   void initState() {
     super.initState();
+    // Capture au lieu d'un ref.read() dans dispose() : Riverpod interdit
+    // d'utiliser ref une fois le widget en cours de demontage ("Using ref
+    // when a widget is about to or has been unmounted is unsafe").
+    _interventionDao = ref.read(databaseProvider).interventionDao;
     _problemeCtrl.addListener(() => setState(() {}));
     _travauxCtrl.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
+    _flushSaisieEnAttente();
     _debounceProbleme?.cancel();
     _debounceTravaux?.cancel();
     _problemeCtrl.dispose();
     _travauxCtrl.dispose();
     super.dispose();
+  }
+
+  /// Si l'utilisateur quitte l'ecran dans les 400 ms suivant sa derniere
+  /// frappe, l'anti-rebond n'a pas encore ecrit ce dernier fragment : on le
+  /// force ici. Ecriture fire-and-forget (dispose() est synchrone) : sans
+  /// risque, AppDatabase est un singleton garde par databaseProvider, jamais
+  /// dispose avec cet ecran.
+  void _flushSaisieEnAttente() {
+    if (_debounceProbleme?.isActive ?? false) {
+      _interventionDao.mettreAJourSaisie(
+        widget.idServeur,
+        problemeConstate: Value(_problemeCtrl.text),
+      );
+    }
+    if (_debounceTravaux?.isActive ?? false) {
+      _interventionDao.mettreAJourSaisie(
+        widget.idServeur,
+        travauxRealises: Value(_travauxCtrl.text),
+      );
+    }
   }
 
   void _initialiserControleurs(Intervention data) {

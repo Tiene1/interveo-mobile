@@ -131,6 +131,26 @@ void main() {
     await _videLeTimerDeFermeture(tester);
   });
 
+  testWidgets(
+    "sauvegarde le texte en attente si l ecran est quitte avant la fin de l anti-rebond",
+    (tester) async {
+      final db = await _dbAvec(_intervention());
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, 'Texte tape juste avant de quitter');
+      // Pas de pump(400ms) : l'anti-rebond n'a pas encore declenche quand
+      // l'ecran se ferme, dispose() doit forcer l'ecriture.
+      await tester.pump();
+      await _videLeTimerDeFermeture(tester);
+
+      final intervention = await db.interventionDao.parId('i-1');
+      expect(intervention!.problemeConstate, 'Texte tape juste avant de quitter');
+      expect(intervention.statutSync, StatutSync.local);
+    },
+  );
+
   testWidgets('cloturer via la modale de confirmation passe l intervention en Realisee', (tester) async {
     final db = await _dbAvec(_intervention(
       problemeConstate: 'Climatiseur en panne',
