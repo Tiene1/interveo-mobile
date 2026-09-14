@@ -69,7 +69,7 @@ mobile/
     theme/
       design_tokens.dart           (couleurs du design system, partagees entre ecrans)
     utils/
-      reference.dart               (reference courte visuelle, miroir de web/.../lib/reference.ts)
+      reference.dart               (reference courte visuelle, miroir de web/.../lib/reference.ts — plus utilisee dans lib/ depuis le 2026-09-14, cf. section 4)
       date.dart                    (formats court et complet jj/mm[/aaaa] · HH:mm)
       text.dart                    (nonRenseigne, miroir de web/.../lib/utils/text.ts)
       maps.dart                    (lienItineraire : dir Google Maps, pas simple recherche comme le web)
@@ -166,6 +166,9 @@ Cédric a relevé, capture d'écran à l'appui, trois écarts entre `MesInterven
 - **Bouton de synchro** : conteneur carré 36×36 à bordure (`--line`), coins à 6px, remplace l'`IconButton` nu. Un point d'état (8px, bordure `--paper` 2px, `Key('indicateurSynchro')`) se superpose en haut à droite, calculé par `_couleurIndicateurSynchro()` — **rouge** si au moins une photo est définitivement en conflit (priorité la plus haute, même hiérarchie que le badge de tuile), **orange** si une synchro est en cours ou s'il reste des clôtures/photos locales non confirmées, **vert** sinon. La maquette ne montre pas explicitement l'état rouge (seulement vert/orange) : extrapolation directe et cohérente avec le badge « Photo en échec » ajouté au ticket précédent, pas une invention.
 - **Repère « Tirez pour synchroniser »** : `_indiceTirerPourSynchroniser()`, première entrée de la liste scrollable (pas un en-tête fixe) — comme dans la maquette, il défile avec le contenu et disparaît dès qu'on descend dans la liste. N'apparaît que si la liste filtrée n'est pas vide ; l'état vide garde son propre message (`_etatVide()`), non modifié par ce ticket (hors périmètre de la demande de Cédric, qui portait sur les trois points ci-dessus).
 - 6 tests nouveaux (111 tests verts au total) : présence du kicker, présence/absence du repère selon liste vide ou non, couleur de l'indicateur pour les trois états.
+
+### Références courtes (#0142) retirées de l'affichage — 2026-09-14
+Cédric a demandé le retrait des références courtes (`referenceCourte()`, ex. `#0142`) affichées sur la tuile de `MesInterventionsScreen`, l'en-tête de `DetailInterventionScreen` et celui de `CompleterInterventionScreen` : sans utilité visuelle pour un technicien (il identifie une intervention par le nom du client et la date, jamais par cette référence). Même raisonnement déjà appliqué côté web le 2026-09-12 (colonne « Réf. » retirée du tableau liste, gardée sur le détail à l'époque) — ici le retrait va plus loin, sur les trois écrans mobile. Texte simplement retiré des lignes concernées (pas de remplacement) : la tuile ne garde que le badge de statut de synchro, l'en-tête de Détail ne garde que le bouton retour, l'en-tête de Compléter ne garde que « Compléter »/« Compte rendu ». **`lib/utils/reference.dart` (`referenceCourte()`) n'est plus appelé nulle part dans `lib/`** — laissé en place (jamais de suppression de fichier sans confirmation explicite), à supprimer si Cédric confirme qu'il ne sera pas réutilisé. 111 tests toujours verts (aucun test n'asserait sur ce texte).
 
 ### Google Maps et téléphone (US2.3)
 - La géolocalisation ouvre Google Maps via `url_launcher` (`https://www.google.com/maps/dir/?api=1&destination=...` ou `geo:`). Si la géolocalisation est vide, seule l'adresse texte s'affiche.

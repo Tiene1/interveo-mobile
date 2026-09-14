@@ -11,7 +11,6 @@ import '../services/sync_service.dart';
 import '../state/interventions_provider.dart';
 import '../theme/design_tokens.dart';
 import '../utils/date.dart';
-import '../utils/reference.dart';
 import 'detail_intervention_screen.dart';
 
 enum _Onglet { toutes, planifiees, realisees }
@@ -605,27 +604,13 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        '#${referenceCourte(intervention.idServeur)}',
-                        style: const TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: textWeak,
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        etiquetteSynchro,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: couleurEtiquette,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    etiquetteSynchro,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: couleurEtiquette,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(

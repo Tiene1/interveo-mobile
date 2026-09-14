@@ -13,7 +13,6 @@ import '../models/enums.dart';
 import '../state/interventions_provider.dart';
 import '../theme/design_tokens.dart';
 import '../utils/date.dart';
-import '../utils/reference.dart';
 
 const _maxPhotosParCategorie = 2;
 
@@ -192,7 +191,7 @@ class _CompleterInterventionScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '#${referenceCourte(widget.idServeur)} · ${estCloturee ? 'Compte rendu' : 'Compléter'}',
+                  estCloturee ? 'Compte rendu' : 'Compléter',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,

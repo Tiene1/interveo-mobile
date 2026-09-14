@@ -8,7 +8,6 @@ import '../state/interventions_provider.dart';
 import '../theme/design_tokens.dart';
 import '../utils/date.dart';
 import '../utils/maps.dart';
-import '../utils/reference.dart';
 import '../utils/text.dart';
 import 'completer_intervention_screen.dart';
 
@@ -122,17 +121,6 @@ class DetailInterventionScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.arrow_back, color: inkColor),
             onPressed: () => Navigator.of(context).pop(),
-          ),
-          const SizedBox(width: 4),
-          Text(
-            '#${referenceCourte(idServeur)}',
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: inkColor,
-              fontFamily: 'monospace',
-              letterSpacing: 0.2,
-            ),
           ),
         ],
       ),
