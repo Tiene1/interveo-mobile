@@ -15,6 +15,10 @@ import 'detail_intervention_screen.dart';
 
 enum _Onglet { toutes, planifiees, realisees }
 
+/// Fenetre au-dela de laquelle une intervention n'est plus consideree comme
+/// recemment assignee (badge "Nouveau" sur la tuile).
+const _dureeNouveaute = Duration(hours: 24);
+
 /// Ecran "Mes interventions" (US2.1). L'affichage lit uniquement la base
 /// locale, jamais le reseau directement : seule la synchro (bouton, tirer-
 /// pour-rafraichir, automatique a l'ouverture, retour de connectivite, ou
@@ -587,6 +591,25 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     );
   }
 
+  Widget _badgeNouveau() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      decoration: BoxDecoration(
+        color: brand,
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: const Text(
+        'NOUVEAU',
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+
   Widget _tuile(Intervention intervention, bool aDesPhotosEnAttente, bool aDesPhotosEnConflit) {
     final couleurMarqueur = intervention.statut == StatutIntervention.planifiee
         ? warning
@@ -607,6 +630,13 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
       etiquetteSynchro = 'Synchronisée';
       couleurEtiquette = textWeak;
     }
+    // Cree il y a moins de _dureeNouveaute (web ou mobile) : le tri de
+    // "Planifiees" reste par date prevue (utile pour "quoi faire ensuite"),
+    // ce badge sert a reperer une nouvelle assignation sans avoir a changer
+    // ce tri (demande Cedric du 2026-09-14, tranchee apres discussion sur le
+    // compromis entre les deux).
+    final estNouvelle =
+        DateTime.now().difference(intervention.creeLe) < _dureeNouveaute;
 
     return InkWell(
       onTap: () => Navigator.of(context).push(
@@ -630,13 +660,21 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    etiquetteSynchro,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: couleurEtiquette,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        etiquetteSynchro,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: couleurEtiquette,
+                        ),
+                      ),
+                      if (estNouvelle) ...[
+                        const SizedBox(width: 6),
+                        _badgeNouveau(),
+                      ],
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(

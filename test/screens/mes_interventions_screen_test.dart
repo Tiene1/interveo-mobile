@@ -66,6 +66,7 @@ InterventionsCompanion _intervention({
   StatutSync statutSync = StatutSync.confirme,
   DateTime? misAJourLe,
   DateTime? modifieLocalementLe,
+  DateTime? creeLe,
 }) {
   return InterventionsCompanion.insert(
     idServeur: idServeur,
@@ -76,7 +77,7 @@ InterventionsCompanion _intervention({
     technicienId: 'tech-1',
     creeParId: 'directeur-1',
     statut: statut,
-    creeLe: datePrevue,
+    creeLe: creeLe ?? datePrevue,
     misAJourLe: misAJourLe ?? datePrevue,
     modifieLocalementLe: Value(modifieLocalementLe),
     statutSync: statutSync,
@@ -303,7 +304,7 @@ void main() {
   testWidgets('les onglets filtrent par statut avec le bon compte', (tester) async {
     final db = await _dbAvecInterventions([
       _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),
-      _intervention(idServeur: 'i-2', nomClient: 'SGBCI Plateau', datePrevue: DateTime(2026, 9, 13, 9), statut: StatutIntervention.realisee),
+      _intervention(idServeur: 'i-2', nomClient: 'SGBCI Plateau', datePrevue: DateTime(2026, 9, 10, 9), statut: StatutIntervention.realisee),
     ]);
 
     await tester.pumpWidget(_app(db));
@@ -321,6 +322,48 @@ void main() {
 
     await _videLeTimerDeFermeture(tester);
   });
+
+  testWidgets(
+    "affiche NOUVEAU sur une intervention creee il y a moins de 24h",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(
+          idServeur: 'i-recente',
+          nomClient: 'Client Recent',
+          datePrevue: DateTime.now().add(const Duration(days: 3)),
+          creeLe: DateTime.now().subtract(const Duration(hours: 2)),
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      expect(find.text('NOUVEAU'), findsOneWidget);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
+    "n affiche pas NOUVEAU sur une intervention creee il y a plus de 24h",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(
+          idServeur: 'i-ancienne',
+          nomClient: 'Client Ancien',
+          datePrevue: DateTime.now().add(const Duration(days: 3)),
+          creeLe: DateTime.now().subtract(const Duration(days: 2)),
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      expect(find.text('NOUVEAU'), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
 
   testWidgets('affiche la ligne date du jour au dessus du titre', (tester) async {
     final db = await _dbAvecInterventions([]);
