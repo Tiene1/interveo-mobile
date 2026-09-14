@@ -18,9 +18,9 @@ import '../utils/reference.dart';
 const _maxPhotosParCategorie = 2;
 
 /// Ecran Completer l'intervention (US2.5, US2.6, US2.7, US2.8, US2.9,
-/// US2.10). Le push serveur des clotures/photos (POST /sync/interventions,
-/// POST /interventions/:id/photos) reste hors perimetre : sync_service.dart
-/// ne fait pour l'instant que le pull.
+/// US2.10). La saisie et la cloture marquent la ligne LOCAL ; l'envoi au
+/// serveur (push des clotures et des photos) est fait par sync_service.dart,
+/// pas ici.
 class CompleterInterventionScreen extends ConsumerStatefulWidget {
   const CompleterInterventionScreen({super.key, required this.idServeur});
 
