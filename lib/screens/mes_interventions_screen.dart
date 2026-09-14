@@ -20,8 +20,8 @@ enum _Onglet { toutes, planifiees, realisees }
 /// pour-rafraichir, automatique a l'ouverture, retour de connectivite, ou
 /// retour au premier plan) parle a l'API et met a jour la base, ce qui fait
 /// reagir la liste. Encore absents (dependent de capacites non construites) :
-/// bandeau hors ligne, "Synchronise il y a X min" et nom du technicien
-/// (necessiteraient GET /auth/moi, explicitement opportuniste).
+/// "Synchronise il y a X min" et nom du technicien (necessiteraient
+/// GET /auth/moi, explicitement opportuniste).
 class MesInterventionsScreen extends ConsumerStatefulWidget {
   const MesInterventionsScreen({super.key});
 
@@ -36,6 +36,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   bool _synchronisationEnCours = false;
   StreamSubscription<List<ConnectivityResult>>? _abonnementConnectivite;
   bool _etaitConnecte = true;
+  bool _horsLigne = false;
 
   @override
   void initState() {
@@ -48,7 +49,19 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     _abonnementConnectivite = Connectivity().onConnectivityChanged.listen(
       _surChangementConnectivite,
     );
+    _verifierConnectiviteInitiale();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Etat reel a l'ouverture (le premier evenement du flux onConnectivityChanged
+  /// n'est pas garanti immediat selon la plateforme) : evite que le bandeau
+  /// hors ligne mette une fraction de seconde a apparaitre si l'appareil est
+  /// deja hors ligne au lancement de l'ecran.
+  Future<void> _verifierConnectiviteInitiale() async {
+    final resultats = await Connectivity().checkConnectivity();
+    if (mounted) {
+      setState(() => _horsLigne = resultats.contains(ConnectivityResult.none));
+    }
   }
 
   @override
@@ -76,6 +89,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
       _synchroniser();
     }
     _etaitConnecte = connecte;
+    if (mounted) setState(() => _horsLigne = !connecte);
   }
 
   Future<void> _synchroniser() async {
@@ -156,6 +170,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     return Column(
       children: [
         _entete(),
+        if (_horsLigne) _bandeauHorsLigne(),
         _onglets(toutes.length, planifiees.length, realisees.length),
         Expanded(
           child: RefreshIndicator(
@@ -203,6 +218,29 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.sync, size: 20, color: textSoft),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bandeauHorsLigne() {
+    return Container(
+      key: const Key('bandeauHorsLigne'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: const Color(0xFFFEF3C7), // --warning-bg
+      child: const Row(
+        children: [
+          Icon(Icons.wifi_off, size: 14, color: warning),
+          SizedBox(width: 10),
+          Text(
+            'Hors ligne — données locales',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: warning,
+              letterSpacing: 0.1,
+            ),
           ),
         ],
       ),

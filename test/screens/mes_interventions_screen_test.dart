@@ -25,13 +25,13 @@ import '../support/fake_token_storage.dart';
 class _ConnectivitePlateformeFausse extends ConnectivityPlatform
     with MockPlatformInterfaceMixin {
   final controleur = StreamController<List<ConnectivityResult>>.broadcast();
+  List<ConnectivityResult> etatInitial = [ConnectivityResult.wifi];
 
   @override
   Stream<List<ConnectivityResult>> get onConnectivityChanged => controleur.stream;
 
   @override
-  Future<List<ConnectivityResult>> checkConnectivity() async =>
-      [ConnectivityResult.wifi];
+  Future<List<ConnectivityResult>> checkConnectivity() async => etatInitial;
 }
 
 InterventionsCompanion _intervention({
@@ -315,6 +315,51 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(appels, appelsInitiaux + 1);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('affiche le bandeau hors ligne si l appareil demarre sans connexion', (tester) async {
+    connectivite.etatInitial = [ConnectivityResult.none];
+    final db = await _dbAvecInterventions([]);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('bandeauHorsLigne')), findsOneWidget);
+    expect(find.text('Hors ligne — données locales'), findsOneWidget);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('n affiche pas le bandeau hors ligne si l appareil demarre connecte', (tester) async {
+    final db = await _dbAvecInterventions([]);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('bandeauHorsLigne')), findsNothing);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('le bandeau hors ligne apparait et disparait selon les evenements de connectivite', (tester) async {
+    final db = await _dbAvecInterventions([]);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('bandeauHorsLigne')), findsNothing);
+
+    connectivite.controleur.add([ConnectivityResult.none]);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('bandeauHorsLigne')), findsOneWidget);
+
+    connectivite.controleur.add([ConnectivityResult.wifi]);
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('bandeauHorsLigne')), findsNothing);
 
     await _videLeTimerDeFermeture(tester);
   });
