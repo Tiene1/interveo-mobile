@@ -3,12 +3,18 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:sim_interventions/data/local_db.dart';
 import 'package:sim_interventions/models/enums.dart';
 import 'package:sim_interventions/screens/completer_intervention_screen.dart';
+import 'package:sim_interventions/services/api_client.dart';
 import 'package:sim_interventions/services/photo_stockage_service.dart';
+import 'package:sim_interventions/services/sync_service.dart';
 import 'package:sim_interventions/state/interventions_provider.dart';
+
+import '../support/fake_token_storage.dart';
 
 /// Fausse implementation : evite d'invoquer le vrai ImagePicker (canal de
 /// plateforme absent en test widget), meme principe que FakeTokenStorage.
@@ -55,14 +61,30 @@ Future<AppDatabase> _dbAvec(InterventionsCompanion intervention) async {
   return db;
 }
 
+/// syncServiceProvider est surcharge ici (client HTTP factice, jamais de vrai
+/// reseau) car la cloture declenche desormais une tentative de synchro
+/// immediate (cf. _demanderCloture) : sans cette surcharge, l'ecran retombe
+/// sur le vrai SecureTokenStorage, qui bloque indefiniment en test faute de
+/// canal de plateforme (meme piege deja documente pour SyncService/AuthService
+/// sur MesInterventionsScreen).
 Widget _app(
   AppDatabase db, {
   String idServeur = 'i-1',
   PhotoStockageService? photoStockage,
+  MockClient? client,
 }) {
+  client ??= MockClient((request) async => http.Response('[]', 200));
   return ProviderScope(
     overrides: [
       databaseProvider.overrideWithValue(db),
+      syncServiceProvider.overrideWithValue(
+        SyncService(
+          interventionDao: db.interventionDao,
+          photoDao: db.photoDao,
+          apiClient: ApiClient(client: client),
+          tokenStorage: FakeTokenStorage(),
+        ),
+      ),
       if (photoStockage != null)
         photoStockageServiceProvider.overrideWithValue(photoStockage),
     ],
@@ -176,6 +198,44 @@ void main() {
   });
 
   testWidgets(
+    'cloturer declenche une tentative de synchro immediate sans attendre le bouton',
+    (tester) async {
+      final db = await _dbAvec(_intervention(
+        problemeConstate: 'Climatiseur en panne',
+        travauxRealises: 'Filtre nettoye',
+      ));
+      var appelsClotures = 0;
+      final client = MockClient((request) async {
+        if (request.url.path.contains('/sync/interventions') && request.method == 'POST') {
+          appelsClotures++;
+          return http.Response(
+            '[{"idServeur":"i-1","resultat":"CONFIRME"}]',
+            200,
+          );
+        }
+        return http.Response('[]', 200);
+      });
+
+      await tester.pumpWidget(_app(db, client: client));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('boutonCloturer')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('boutonConfirmerCloture')));
+      await tester.pumpAndSettle();
+
+      // Constat Cedric le 2026-09-14 : la cloture doit partir sans clic sur
+      // le bouton de synchro de "Mes interventions" si l'appareil est deja
+      // connecte.
+      expect(appelsClotures, 1, reason: 'la cloture aurait du partir sans intervention manuelle');
+      final intervention = await db.interventionDao.parId('i-1');
+      expect(intervention!.statutSync, StatutSync.confirme);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
     'cloturer juste apres une frappe rapide n efface pas probleme/travaux '
     '(piege de course avec l anti-rebond)',
     (tester) async {
@@ -209,6 +269,12 @@ void main() {
       await tester.tap(find.byKey(const Key('boutonConfirmerCloture')));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
+      // Laisse la tentative de synchro post-cloture (synchroniser(), via le
+      // MockClient de _app()) vider sa chaine d'await successifs, sans
+      // avancer davantage l'horloge simulee (toujours sous les 400ms).
+      await tester.pump();
+      await tester.pump();
+      await tester.pump();
 
       final intervention = await db.interventionDao.parId('i-1');
       expect(intervention!.statut, StatutIntervention.realisee);

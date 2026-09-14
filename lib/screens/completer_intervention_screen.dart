@@ -140,6 +140,19 @@ class _CompleterInterventionScreenState
     await _flushSaisieEnAttente();
     final dao = ref.read(databaseProvider).interventionDao;
     await dao.cloturer(widget.idServeur, dateRealisation: DateTime.now());
+
+    // Tentative de synchro immediate (push + pull), opportuniste : si
+    // l'appareil est deja connecte, la cloture part sans attendre un retour
+    // sur "Mes interventions" ou un appui manuel sur le bouton de synchro
+    // (constat reel Cedric le 2026-09-14). Jamais bloquant pour l'ecran (deja
+    // ferme en lecture seule a ce stade) : une erreur (hors ligne, serveur
+    // injoignable...) est ignoree ici, "Mes interventions" reprend le relais
+    // via ses propres declencheurs (ouverture, connectivite retablie...).
+    try {
+      await ref.read(syncServiceProvider).synchroniser();
+    } catch (_) {
+      // Volontairement silencieux, cf. commentaire ci-dessus.
+    }
   }
 
   @override
