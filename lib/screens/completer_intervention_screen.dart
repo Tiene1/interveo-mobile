@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
@@ -546,28 +547,28 @@ class _CompleterInterventionScreenState
     return GestureDetector(
       key: Key('ajouterPhoto-${categorie.name}'),
       onTap: () => _demanderSourcePhoto(categorie),
-      child: Container(
-        width: 88,
-        height: 88,
-        decoration: BoxDecoration(
-          border: Border.all(color: lineStrong),
-          borderRadius: BorderRadius.circular(2),
-        ),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.camera_alt_outlined, size: 20, color: textSoft),
-            SizedBox(height: 4),
-            Text(
-              'AJOUTER',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: textSoft,
-                letterSpacing: 0.6,
+      child: CustomPaint(
+        foregroundPainter: const _BordurePointillee(couleur: lineStrong),
+        child: Container(
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(2)),
+          child: const Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.camera_alt_outlined, size: 20, color: textSoft),
+              SizedBox(height: 4),
+              Text(
+                'AJOUTER',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: textSoft,
+                  letterSpacing: 0.6,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -821,4 +822,40 @@ class _ModaleSourcePhoto extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Bordure en pointilles autour d'un rectangle a coins arrondis (Flutter n'a
+/// pas d'equivalent au `border-style: dashed` du CSS). Fidele au bouton
+/// "Ajouter" de M4 - Completer intervention.html.
+class _BordurePointillee extends CustomPainter {
+  const _BordurePointillee({required this.couleur});
+
+  final Color couleur;
+
+  static const _rayon = 2.0;
+  static const _longueurTiret = 4.0;
+  static const _espacement = 3.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final contour = Path()
+      ..addRRect(RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(_rayon)));
+    final peinture = Paint()
+      ..color = couleur
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (final metrique in contour.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metrique.length) {
+        final fin = math.min(distance + _longueurTiret, metrique.length);
+        canvas.drawPath(metrique.extractPath(distance, fin), peinture);
+        distance = fin + _espacement;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BordurePointillee oldDelegate) =>
+      couleur != oldDelegate.couleur;
 }
