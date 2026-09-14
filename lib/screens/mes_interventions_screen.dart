@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/local_db.dart';
 import '../models/enums.dart';
 import '../services/api_client.dart';
+import '../services/sync_service.dart';
 import '../state/interventions_provider.dart';
 import '../theme/design_tokens.dart';
 import '../utils/date.dart';
@@ -121,18 +122,11 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     if (_synchronisationEnCours) return;
     setState(() => _synchronisationEnCours = true);
     try {
-      final conflits = await ref.read(syncServiceProvider).synchroniser();
+      final resultat = await ref.read(syncServiceProvider).synchroniser();
       if (mounted) setState(() => _derniereSynchro = DateTime.now());
-      if (mounted && conflits > 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              conflits == 1
-                  ? "1 intervention a été annulée entre-temps, la clôture locale a été abandonnée."
-                  : '$conflits interventions ont été annulées entre-temps, les clôtures locales ont été abandonnées.',
-            ),
-          ),
-        );
+      final message = _messageResultatSynchro(resultat);
+      if (mounted && message != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (erreur) {
       if (mounted) {
@@ -156,11 +150,36 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     return 'Synchronisation impossible : $erreur';
   }
 
+  /// Combine les deux types de conflits d'un cycle de synchro en un seul
+  /// message (rare d'avoir les deux a la fois, mais pas exclu). Null si tout
+  /// s'est bien passe.
+  String? _messageResultatSynchro(ResultatSynchro resultat) {
+    final phrases = <String>[];
+    if (resultat.conflitsClotures > 0) {
+      phrases.add(
+        resultat.conflitsClotures == 1
+            ? "1 intervention a été annulée entre-temps, la clôture locale a été abandonnée."
+            : '${resultat.conflitsClotures} interventions ont été annulées entre-temps, les clôtures locales ont été abandonnées.',
+      );
+    }
+    if (resultat.photosEnConflit > 0) {
+      phrases.add(
+        resultat.photosEnConflit == 1
+            ? "1 photo n'a pas pu être synchronisée (catégorie déjà complète)."
+            : '${resultat.photosEnConflit} photos n\'ont pas pu être synchronisées (catégorie déjà complète).',
+      );
+    }
+    return phrases.isEmpty ? null : phrases.join(' ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final interventions = ref.watch(interventionsAttribueesProvider);
     final idsAvecPhotosEnAttente =
         ref.watch(interventionsAvecPhotosEnAttenteProvider).asData?.value ??
+        const <String>{};
+    final idsAvecPhotosEnConflit =
+        ref.watch(interventionsAvecPhotosEnConflitProvider).asData?.value ??
         const <String>{};
 
     return Scaffold(
@@ -174,13 +193,17 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
               style: const TextStyle(color: danger),
             ),
           ),
-          data: (toutes) => _corps(toutes, idsAvecPhotosEnAttente),
+          data: (toutes) => _corps(toutes, idsAvecPhotosEnAttente, idsAvecPhotosEnConflit),
         ),
       ),
     );
   }
 
-  Widget _corps(List<Intervention> toutes, Set<String> idsAvecPhotosEnAttente) {
+  Widget _corps(
+    List<Intervention> toutes,
+    Set<String> idsAvecPhotosEnAttente,
+    Set<String> idsAvecPhotosEnConflit,
+  ) {
     final planifiees = toutes
         .where((i) => i.statut == StatutIntervention.planifiee)
         .toList();
@@ -204,7 +227,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
             onRefresh: _synchroniser,
             child: affichees.isEmpty
                 ? _etatVide()
-                : _liste(affichees, idsAvecPhotosEnAttente),
+                : _liste(affichees, idsAvecPhotosEnAttente, idsAvecPhotosEnConflit),
           ),
         ),
       ],
@@ -403,7 +426,11 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     );
   }
 
-  Widget _liste(List<Intervention> interventions, Set<String> idsAvecPhotosEnAttente) {
+  Widget _liste(
+    List<Intervention> interventions,
+    Set<String> idsAvecPhotosEnAttente,
+    Set<String> idsAvecPhotosEnConflit,
+  ) {
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -412,19 +439,31 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
       itemBuilder: (context, index) => _tuile(
         interventions[index],
         idsAvecPhotosEnAttente.contains(interventions[index].idServeur),
+        idsAvecPhotosEnConflit.contains(interventions[index].idServeur),
       ),
     );
   }
 
-  Widget _tuile(Intervention intervention, bool aDesPhotosEnAttente) {
+  Widget _tuile(Intervention intervention, bool aDesPhotosEnAttente, bool aDesPhotosEnConflit) {
     final couleurMarqueur = intervention.statut == StatutIntervention.planifiee
         ? warning
         : success;
     final clotureSynchronisee = intervention.statutSync == StatutSync.confirme;
-    final synchronisee = clotureSynchronisee && !aDesPhotosEnAttente;
-    final etiquetteSynchro = !clotureSynchronisee
-        ? 'À synchroniser'
-        : (aDesPhotosEnAttente ? 'Photos à synchroniser' : 'Synchronisée');
+    final String etiquetteSynchro;
+    final Color couleurEtiquette;
+    if (!clotureSynchronisee) {
+      etiquetteSynchro = 'À synchroniser';
+      couleurEtiquette = warning;
+    } else if (aDesPhotosEnConflit) {
+      etiquetteSynchro = 'Photo en échec';
+      couleurEtiquette = danger;
+    } else if (aDesPhotosEnAttente) {
+      etiquetteSynchro = 'Photos à synchroniser';
+      couleurEtiquette = warning;
+    } else {
+      etiquetteSynchro = 'Synchronisée';
+      couleurEtiquette = textWeak;
+    }
 
     return InkWell(
       onTap: () => Navigator.of(context).push(
@@ -465,7 +504,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,
-                          color: synchronisee ? textWeak : warning,
+                          color: couleurEtiquette,
                         ),
                       ),
                     ],

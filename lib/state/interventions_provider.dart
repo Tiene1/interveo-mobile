@@ -48,6 +48,17 @@ final interventionsAvecPhotosEnAttenteProvider = StreamProvider<Set<String>>((re
       .map((photos) => photos.map((p) => p.interventionIdLocal).toSet());
 });
 
+/// Ids serveur des interventions ayant au moins une photo definitivement en
+/// conflit (categorie pleine cote serveur) : signal distinct et prioritaire
+/// sur "en attente", qui laisse croire a tort que ca va se resorber tout
+/// seul (voir docs/architecture.md).
+final interventionsAvecPhotosEnConflitProvider = StreamProvider<Set<String>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.photoDao
+      .watchEnConflit()
+      .map((photos) => photos.map((p) => p.interventionIdLocal).toSet());
+});
+
 /// Instance unique, testable via overrideWithValue (voir FakeTokenStorage
 /// pour le meme principe).
 final photoStockageServiceProvider = Provider<PhotoStockageService>((ref) {

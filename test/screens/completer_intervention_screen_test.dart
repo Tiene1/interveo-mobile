@@ -238,6 +238,28 @@ void main() {
     await _videLeTimerDeFermeture(tester);
   });
 
+  testWidgets('affiche PHOTO EN ECHEC quand une photo est definitivement en conflit', (tester) async {
+    final db = await _dbAvec(_intervention(
+      problemeConstate: 'Climatiseur en panne',
+      travauxRealises: 'Filtre nettoye',
+      statut: StatutIntervention.realisee,
+      dateRealisation: DateTime(2026, 9, 14, 15, 30),
+      statutSync: StatutSync.confirme,
+    ));
+    final idLocal = await _ajouterPhoto(db, categorie: CategoriePhoto.avant);
+    await db.photoDao.marquerEnConflit(idLocal);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PHOTO EN ÉCHEC'), findsOneWidget);
+    expect(find.text('PHOTOS À SYNCHRONISER'), findsNothing);
+    expect(find.text('SYNCHRONISÉE'), findsNothing);
+    expect(find.text('À SYNCHRONISER'), findsNothing);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
   testWidgets('les sections photos demarrent a 0 / 2 avec un bouton Ajouter', (tester) async {
     final db = await _dbAvec(_intervention());
 

@@ -249,9 +249,10 @@ void main() {
       tokenStorage: FakeTokenStorage(),
     );
 
-    final conflits = await service.synchroniser();
+    final resultat = await service.synchroniser();
 
-    expect(conflits, 1);
+    expect(resultat.conflitsClotures, 1);
+    expect(resultat.photosEnConflit, 0);
     final intervention = await db.interventionDao.parId('i-1');
     expect(intervention!.statut, StatutIntervention.annulee);
     expect(intervention.statutSync, StatutSync.confirme);
@@ -376,6 +377,60 @@ void main() {
     expect(appels, 2);
     final photos = await db.photoDao.listerPourIntervention('i-1');
     expect(photos.where((p) => p.statutSync == StatutSync.confirme), hasLength(1));
+    expect(photos.where((p) => p.statutSync == StatutSync.conflit), hasLength(1));
+  });
+
+  test('une photo en conflit n est plus jamais reessayee lors d un appel suivant', () async {
+    await seedeClotureLocale(db);
+    final fichier = await creerFichierTemp();
+    addTearDown(() => fichier.delete());
+    await seedePhotoLocale(db, cheminLocal: fichier.path);
+
+    var appels = 0;
+    final client = MockClient((request) async {
+      appels++;
+      return http.Response('{"message":"Maximum 2 photos AVANT par intervention"}', 409);
+    });
+    final service = SyncService(
+      interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
+      apiClient: ApiClient(client: client),
+      tokenStorage: FakeTokenStorage(),
+    );
+
+    expect(await service.pousserPhotos(), 1);
+    expect(appels, 1);
+
+    expect(await service.pousserPhotos(), 0);
+    expect(appels, 1, reason: 'la photo en conflit ne doit plus declencher de requete');
+  });
+
+  test('synchroniser renvoie le nombre de photos en conflit', () async {
+    await seedeClotureLocale(db);
+    final fichier = await creerFichierTemp();
+    addTearDown(() => fichier.delete());
+    await seedePhotoLocale(db, cheminLocal: fichier.path);
+
+    final client = MockClient((request) async {
+      if (request.method == 'POST' && request.url.path.contains('/photos')) {
+        return http.Response('{"message":"Maximum 2 photos AVANT par intervention"}', 409);
+      }
+      if (request.method == 'POST') {
+        return http.Response('[{"idServeur":"i-1","resultat":"CONFIRME"}]', 200);
+      }
+      return http.Response('[]', 200);
+    });
+    final service = SyncService(
+      interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
+      apiClient: ApiClient(client: client),
+      tokenStorage: FakeTokenStorage(),
+    );
+
+    final resultat = await service.synchroniser();
+
+    expect(resultat.conflitsClotures, 0);
+    expect(resultat.photosEnConflit, 1);
   });
 
   test('pousserPhotos propage une erreur autre que 409', () async {

@@ -36,6 +36,26 @@ class _ConnectivitePlateformeFausse extends ConnectivityPlatform
   Future<List<ConnectivityResult>> checkConnectivity() async => etatInitial;
 }
 
+/// Renvoie un [ResultatSynchro] fixe sans toucher au reseau ni au disque :
+/// evite de faire passer un testWidgets par le vrai chemin d'upload de photo
+/// (multipart, I/O fichier reelle), qui reste bloque indefiniment sous
+/// l'horloge simulee de testWidgets (cf. docs/architecture.md, piege de test
+/// du ticket "push des photos").
+class _SyncServiceResultatFixe extends SyncService {
+  _SyncServiceResultatFixe({
+    required super.interventionDao,
+    required super.photoDao,
+    required super.apiClient,
+    required super.tokenStorage,
+    required this.resultat,
+  });
+
+  final ResultatSynchro resultat;
+
+  @override
+  Future<ResultatSynchro> synchroniser() async => resultat;
+}
+
 InterventionsCompanion _intervention({
   required String idServeur,
   required String nomClient,
@@ -222,6 +242,36 @@ void main() {
     },
   );
 
+  testWidgets(
+    "indique 'Photo en echec' quand une photo est definitivement en conflit",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(
+          idServeur: 'i-1',
+          nomClient: 'Hotel Ivoire',
+          datePrevue: DateTime(2026, 9, 12, 9),
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      await db.photoDao.ajouter(PhotosCompanion.insert(
+        interventionIdLocal: 'i-1',
+        categorie: CategoriePhoto.avant,
+        cheminLocal: '/donnees/test/photo.jpg',
+        statutSync: StatutSync.conflit,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Photo en échec'), findsOneWidget);
+      expect(find.text('Photos à synchroniser'), findsNothing);
+      expect(find.text('Synchronisée'), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
   testWidgets("affiche 'Synchronise a l instant' juste apres une synchro reussie", (tester) async {
     final db = await _dbAvecInterventions([]);
 
@@ -351,6 +401,30 @@ void main() {
 
     expect(
       find.text('Synchronisation impossible : Exception: panne reseau'),
+      findsOneWidget,
+    );
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('affiche un message quand une photo est en conflit apres la synchro', (tester) async {
+    final db = await _dbAvecInterventions([
+      _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),
+    ]);
+    final client = MockClient((request) async => http.Response('[]', 200));
+    final syncService = _SyncServiceResultatFixe(
+      interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
+      apiClient: ApiClient(client: client),
+      tokenStorage: FakeTokenStorage(),
+      resultat: const ResultatSynchro(conflitsClotures: 0, photosEnConflit: 1),
+    );
+
+    await tester.pumpWidget(_appAvecClient(db, client, syncService: syncService));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text("1 photo n'a pas pu être synchronisée (catégorie déjà complète)."),
       findsOneWidget,
     );
 

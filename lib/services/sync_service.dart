@@ -96,10 +96,12 @@ class SyncService {
   /// Envoie au serveur les photos locales (`statutSync = LOCAL`) via
   /// POST /interventions/:id/photos (multipart). Marque `CONFIRME` avec
   /// l'`idServeur` recu les photos acceptees. Un 409 (deja 2 photos de cette
-  /// categorie cote serveur, ex. retentative apres un crash post-upload) est
-  /// compte comme echec sans bloquer les photos suivantes ; toute autre
-  /// erreur (reseau, 401...) remonte et arrete la boucle. Renvoie le nombre
-  /// d'echecs.
+  /// categorie cote serveur - un refus definitif, pas juste "deja envoyee
+  /// par cette meme photo") marque la photo `conflit` (`PhotoDao.marquerEnConflit`) :
+  /// exclue de [PhotoDao.listerAPousser], elle n'est donc plus jamais
+  /// reessayee automatiquement, cf. docs/architecture.md. Toute autre erreur
+  /// (reseau, 401...) remonte et arrete la boucle. Renvoie le nombre de
+  /// photos en conflit.
   Future<int> pousserPhotos() async {
     final aPousser = await _photoDao.listerAPousser();
     if (aPousser.isEmpty) return 0;
@@ -120,6 +122,7 @@ class SyncService {
         await _photoDao.marquerConfirmee(photo.idLocal, reponse['id'] as String);
       } on ApiException catch (erreur) {
         if (erreur.statusCode != 409) rethrow;
+        await _photoDao.marquerEnConflit(photo.idLocal);
         echecs++;
       }
     }
@@ -128,18 +131,19 @@ class SyncService {
 
   /// Orchestration complete de la synchro : pousse les clotures locales et
   /// les photos, puis re-tire les interventions (fait foi en cas de conflit,
-  /// cf. "l'annulation gagne" dans docs/architecture.md). Renvoie le nombre
-  /// de conflits de clotures (les echecs de photos sont un cas distinct,
-  /// cf. [pousserPhotos]). Persiste l'heure de succes (voir
-  /// [derniereSynchroReussie]) : un cycle complet sans exception est
-  /// considere reussi meme s'il y a eu des conflits ou des echecs de photos,
-  /// ce sont des cas geres, pas des pannes de synchro.
-  Future<int> synchroniser() async {
-    final conflits = await pousserInterventions();
-    await pousserPhotos();
+  /// cf. "l'annulation gagne" dans docs/architecture.md). Persiste l'heure de
+  /// succes (voir [derniereSynchroReussie]) : un cycle complet sans exception
+  /// est considere reussi meme s'il y a eu des conflits de clotures ou des
+  /// photos en conflit, ce sont des cas geres, pas des pannes de synchro.
+  Future<ResultatSynchro> synchroniser() async {
+    final conflitsClotures = await pousserInterventions();
+    final photosEnConflit = await pousserPhotos();
     await tirerInterventions();
     await _tokenStorage.ecrire(cleDerniereSynchro, DateTime.now().toIso8601String());
-    return conflits;
+    return ResultatSynchro(
+      conflitsClotures: conflitsClotures,
+      photosEnConflit: photosEnConflit,
+    );
   }
 
   /// Heure de la derniere synchro reussie, persistee (survit a un
@@ -174,4 +178,18 @@ class SyncService {
       statutSync: StatutSync.confirme,
     );
   }
+}
+
+/// Resultat d'un cycle [SyncService.synchroniser] complet.
+class ResultatSynchro {
+  const ResultatSynchro({
+    required this.conflitsClotures,
+    required this.photosEnConflit,
+  });
+
+  /// Clotures refusees par le serveur (intervention annulee entre-temps...).
+  final int conflitsClotures;
+
+  /// Photos definitivement refusees (categorie deja pleine cote serveur).
+  final int photosEnConflit;
 }

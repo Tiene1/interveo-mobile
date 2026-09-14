@@ -234,11 +234,24 @@ class _CompleterInterventionScreenState
 
   Widget _bandeauSucces(Intervention data, List<Photo> photos) {
     final clotureSynchronisee = data.statutSync == StatutSync.confirme;
+    final aDesPhotosEnConflit = photos.any((p) => p.statutSync == StatutSync.conflit);
     final photosSynchronisees =
         photos.every((p) => p.statutSync == StatutSync.confirme);
-    final etiquette = !clotureSynchronisee
-        ? 'À SYNCHRONISER'
-        : (photosSynchronisees ? 'SYNCHRONISÉE' : 'PHOTOS À SYNCHRONISER');
+    final String etiquette;
+    final Color couleurEtiquette;
+    if (!clotureSynchronisee) {
+      etiquette = 'À SYNCHRONISER';
+      couleurEtiquette = success;
+    } else if (aDesPhotosEnConflit) {
+      etiquette = 'PHOTO EN ÉCHEC';
+      couleurEtiquette = danger;
+    } else if (!photosSynchronisees) {
+      etiquette = 'PHOTOS À SYNCHRONISER';
+      couleurEtiquette = success;
+    } else {
+      etiquette = 'SYNCHRONISÉE';
+      couleurEtiquette = success;
+    }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       color: const Color(0xFFDCFCE7), // --success-bg
@@ -259,10 +272,10 @@ class _CompleterInterventionScreenState
               ),
               Text(
                 etiquette,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
-                  color: success,
+                  color: couleurEtiquette,
                   letterSpacing: 0.4,
                 ),
               ),

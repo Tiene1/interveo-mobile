@@ -16,7 +16,10 @@ enum TypeEquipement {
 
 enum CategoriePhoto { avant, apres }
 
-enum StatutSync { local, envoye, confirme }
+/// `conflit` : le serveur a definitivement refuse l'envoi (ex. photo dont la
+/// categorie est deja pleine cote serveur) - jamais reessaye automatiquement,
+/// contrairement a `local` qui reste candidat a chaque synchro.
+enum StatutSync { local, envoye, confirme, conflit }
 
 /// Conversions depuis le format serveur (chaines en SCREAMING_CASE, ex.
 /// "PLANIFIEE") vers les enums locaux. Utilisees par sync_service.dart pour

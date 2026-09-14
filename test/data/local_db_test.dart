@@ -173,4 +173,42 @@ void main() {
 
     expect(nonConfirmees.map((p) => p.cheminLocal), ['/donnees/locale.jpg']);
   });
+
+  test('photoDao.marquerEnConflit passe la photo a conflit', () async {
+    await db.interventionDao.upsert(interventionExemple());
+    final idLocal = await db.photoDao.ajouter(PhotosCompanion.insert(
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.avant,
+      cheminLocal: '/donnees/locale.jpg',
+      statutSync: StatutSync.local,
+    ));
+
+    await db.photoDao.marquerEnConflit(idLocal);
+
+    final photos = await db.photoDao.listerPourIntervention('i-1');
+    expect(photos.single.statutSync, StatutSync.conflit);
+  });
+
+  test('une photo en conflit est exclue de listerAPousser mais presente dans watchEnConflit', () async {
+    await db.interventionDao.upsert(interventionExemple());
+    final idLocal = await db.photoDao.ajouter(PhotosCompanion.insert(
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.avant,
+      cheminLocal: '/donnees/en-conflit.jpg',
+      statutSync: StatutSync.local,
+    ));
+    await db.photoDao.marquerEnConflit(idLocal);
+    await db.photoDao.ajouter(PhotosCompanion.insert(
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.apres,
+      cheminLocal: '/donnees/locale.jpg',
+      statutSync: StatutSync.local,
+    ));
+
+    final aPousser = await db.photoDao.listerAPousser();
+    final enConflit = await db.photoDao.watchEnConflit().first;
+
+    expect(aPousser.map((p) => p.cheminLocal), ['/donnees/locale.jpg']);
+    expect(enConflit.map((p) => p.cheminLocal), ['/donnees/en-conflit.jpg']);
+  });
 }
