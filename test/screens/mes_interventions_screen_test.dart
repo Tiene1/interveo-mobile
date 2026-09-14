@@ -13,6 +13,7 @@ import 'package:sim_interventions/models/enums.dart';
 import 'package:sim_interventions/screens/detail_intervention_screen.dart';
 import 'package:sim_interventions/screens/mes_interventions_screen.dart';
 import 'package:sim_interventions/services/api_client.dart';
+import 'package:sim_interventions/services/auth_service.dart';
 import 'package:sim_interventions/services/sync_service.dart';
 import 'package:sim_interventions/state/interventions_provider.dart';
 
@@ -66,7 +67,7 @@ Future<AppDatabase> _dbAvecInterventions(List<InterventionsCompanion> interventi
 
 Widget _app(AppDatabase db) => appTest(home: const MesInterventionsScreen(), db: db);
 
-Widget _appAvecClient(AppDatabase db, MockClient client) {
+Widget _appAvecClient(AppDatabase db, MockClient client, {AuthService? authService}) {
   return ProviderScope(
     overrides: [
       databaseProvider.overrideWithValue(db),
@@ -77,6 +78,10 @@ Widget _appAvecClient(AppDatabase db, MockClient client) {
           apiClient: ApiClient(client: client),
           tokenStorage: FakeTokenStorage(),
         ),
+      ),
+      authServiceProvider.overrideWithValue(
+        authService ??
+            AuthService(apiClient: ApiClient(client: client), storage: FakeTokenStorage()),
       ),
     ],
     child: const MaterialApp(home: MesInterventionsScreen()),
@@ -229,6 +234,47 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Synchronisé'), findsNothing);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('affiche le nom du technicien recupere via GET auth/moi', (tester) async {
+    final db = await _dbAvecInterventions([]);
+    final clientSynchro = MockClient((request) async => http.Response('[]', 200));
+    final storageAvecJeton = FakeTokenStorage();
+    await storageAvecJeton.ecrire('jwt', 'jwt-fictif');
+    final authService = AuthService(
+      apiClient: ApiClient(
+        client: MockClient(
+          (request) async => http.Response(
+            '{"id":"tech-1","nom":"Koffi N\'Guessan","identifiant":"koffi","role":"TECHNICIEN"}',
+            200,
+          ),
+        ),
+      ),
+      storage: storageAvecJeton,
+    );
+
+    await tester.pumpWidget(
+      _appAvecClient(db, clientSynchro, authService: authService),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('nomTechnicien')), findsOneWidget);
+    expect(find.text("Koffi N'Guessan"), findsOneWidget);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('n affiche pas de nom si la recuperation du profil echoue', (tester) async {
+    final db = await _dbAvecInterventions([]);
+    final clientSynchro = MockClient((request) async => http.Response('[]', 200));
+
+    await tester.pumpWidget(_appAvecClient(db, clientSynchro));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('nomTechnicien')), findsNothing);
+    expect(find.textContaining('Synchronisé'), findsOneWidget);
 
     await _videLeTimerDeFermeture(tester);
   });

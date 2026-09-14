@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/local_db.dart';
+import '../services/auth_service.dart';
 import '../services/photo_stockage_service.dart';
 import '../services/sync_service.dart';
 
@@ -52,3 +53,6 @@ final interventionsAvecPhotosEnAttenteProvider = StreamProvider<Set<String>>((re
 final photoStockageServiceProvider = Provider<PhotoStockageService>((ref) {
   return PhotoStockageService();
 });
+
+/// Nom du technicien (Mes interventions), en opportuniste via GET /auth/moi.
+final authServiceProvider = Provider<AuthService>((ref) => AuthService());

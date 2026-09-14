@@ -43,4 +43,52 @@ void main() {
 
     expect(await service.sessionValide(), isTrue);
   });
+
+  test('nomTechnicien renvoie le nom du backend', () async {
+    final client = MockClient((request) async {
+      expect(request.headers['Authorization'], 'Bearer jwt-fictif');
+      return http.Response(
+        '{"id":"tech-1","nom":"Koffi N\'Guessan","identifiant":"koffi","role":"TECHNICIEN"}',
+        200,
+      );
+    });
+    final storage = FakeTokenStorage();
+    await storage.ecrire('jwt', 'jwt-fictif');
+    final service = AuthService(apiClient: ApiClient(client: client), storage: storage);
+
+    expect(await service.nomTechnicien(), "Koffi N'Guessan");
+  });
+
+  test('nomTechnicien renvoie null sans jeton, sans appeler le reseau', () async {
+    var appele = false;
+    final client = MockClient((request) async {
+      appele = true;
+      return http.Response('{}', 200);
+    });
+    final service = AuthService(
+      apiClient: ApiClient(client: client),
+      storage: FakeTokenStorage(),
+    );
+
+    expect(await service.nomTechnicien(), isNull);
+    expect(appele, isFalse);
+  });
+
+  test('nomTechnicien renvoie null sur une erreur serveur', () async {
+    final client = MockClient((request) async => http.Response('{"message":"non autorise"}', 401));
+    final storage = FakeTokenStorage();
+    await storage.ecrire('jwt', 'jwt-fictif');
+    final service = AuthService(apiClient: ApiClient(client: client), storage: storage);
+
+    expect(await service.nomTechnicien(), isNull);
+  });
+
+  test('nomTechnicien renvoie null sur une erreur reseau', () async {
+    final client = MockClient((request) async => throw Exception('hors ligne'));
+    final storage = FakeTokenStorage();
+    await storage.ecrire('jwt', 'jwt-fictif');
+    final service = AuthService(apiClient: ApiClient(client: client), storage: storage);
+
+    expect(await service.nomTechnicien(), isNull);
+  });
 }

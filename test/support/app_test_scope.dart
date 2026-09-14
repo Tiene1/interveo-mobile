@@ -7,15 +7,19 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:sim_interventions/data/local_db.dart';
 import 'package:sim_interventions/services/api_client.dart';
+import 'package:sim_interventions/services/auth_service.dart';
 import 'package:sim_interventions/services/sync_service.dart';
 import 'package:sim_interventions/state/interventions_provider.dart';
 
 import 'fake_token_storage.dart';
 
 /// ProviderScope de test qui evite tout vrai appel reseau : MesInterventionsScreen
-/// declenche une synchro des son initState, donc tout test qui l'atteint (via
-/// le splash, la connexion, ou directement) a besoin que syncServiceProvider
-/// reponde instantanement plutot que d'attendre un vrai serveur.
+/// declenche une synchro et une recuperation opportuniste du nom du
+/// technicien des son initState, donc tout test qui l'atteint (via le
+/// splash, la connexion, ou directement) a besoin que syncServiceProvider
+/// et authServiceProvider repondent instantanement plutot que d'attendre un
+/// vrai serveur ou le vrai stockage securise (FlutterSecureStorage bloque
+/// indefiniment sans canal de plateforme en test, cf. ticket 7).
 Widget appTest({
   required Widget home,
   AppDatabase? db,
@@ -34,6 +38,9 @@ Widget appTest({
           apiClient: ApiClient(client: client),
           tokenStorage: FakeTokenStorage(),
         ),
+      ),
+      authServiceProvider.overrideWithValue(
+        AuthService(apiClient: ApiClient(client: client), storage: FakeTokenStorage()),
       ),
     ],
     child: MaterialApp(home: home),

@@ -19,9 +19,7 @@ enum _Onglet { toutes, planifiees, realisees }
 /// locale, jamais le reseau directement : seule la synchro (bouton, tirer-
 /// pour-rafraichir, automatique a l'ouverture, retour de connectivite, ou
 /// retour au premier plan) parle a l'API et met a jour la base, ce qui fait
-/// reagir la liste. Encore absent (dependent d'une capacite non construite) :
-/// nom du technicien (necessiterait GET /auth/moi, explicitement
-/// opportuniste).
+/// reagir la liste.
 class MesInterventionsScreen extends ConsumerStatefulWidget {
   const MesInterventionsScreen({super.key});
 
@@ -38,6 +36,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   bool _etaitConnecte = true;
   bool _horsLigne = false;
   DateTime? _derniereSynchro;
+  String? _nomTechnicien;
 
   @override
   void initState() {
@@ -45,13 +44,24 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     // setState ne doit pas etre appele de facon synchrone pendant initState :
     // on attend le premier frame (addPostFrameCallback) avant de lancer la
     // synchro, qui met _synchronisationEnCours a jour via setState.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _synchroniser());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _synchroniser();
+      _chargerNomTechnicien();
+    });
 
     _abonnementConnectivite = Connectivity().onConnectivityChanged.listen(
       _surChangementConnectivite,
     );
     _verifierConnectiviteInitiale();
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Opportuniste (GET /auth/moi) : simple complement d'affichage, jamais
+  /// bloquant. AuthService.nomTechnicien() ne leve jamais (hors ligne, jeton
+  /// expire... renvoient null), donc pas de try/catch ici.
+  Future<void> _chargerNomTechnicien() async {
+    final nom = await ref.read(authServiceProvider).nomTechnicien();
+    if (mounted && nom != null) setState(() => _nomTechnicien = nom);
   }
 
   /// Etat reel a l'ouverture (le premier evenement du flux onConnectivityChanged
@@ -227,22 +237,49 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     );
   }
 
-  /// US2.1 (dette technique) : heure de la derniere synchro reussie (push +
-  /// pull), pas persistee (reinitialisee a chaque ouverture d'ecran, qui
-  /// relance de toute facon une synchro automatique). Le nom du technicien
-  /// prevu a cote dans la maquette reste hors perimetre (GET /auth/moi).
+  /// US2.1 (dette technique) : nom du technicien (GET /auth/moi, opportuniste,
+  /// absent si jamais recupere) et heure de la derniere synchro reussie
+  /// (push + pull), pas persistee (reinitialisee a chaque ouverture d'ecran,
+  /// qui relance de toute facon une synchro automatique).
   Widget _metaSynchro() {
-    if (_derniereSynchro == null) return const SizedBox.shrink();
+    if (_derniereSynchro == null && _nomTechnicien == null) {
+      return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Text(
-        _texteDerniereSynchro(_derniereSynchro!),
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: textWeak,
-          letterSpacing: 0.1,
-        ),
+      child: Row(
+        children: [
+          if (_nomTechnicien != null)
+            Text(
+              _nomTechnicien!,
+              key: const Key('nomTechnicien'),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: textSoft,
+                letterSpacing: 0.1,
+              ),
+            ),
+          if (_nomTechnicien != null && _derniereSynchro != null) ...[
+            const SizedBox(width: 8),
+            Container(
+              width: 3,
+              height: 3,
+              decoration: const BoxDecoration(color: textWeak, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+          ],
+          if (_derniereSynchro != null)
+            Text(
+              _texteDerniereSynchro(_derniereSynchro!),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: textWeak,
+                letterSpacing: 0.1,
+              ),
+            ),
+        ],
       ),
     );
   }

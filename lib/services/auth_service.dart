@@ -28,4 +28,21 @@ class AuthService {
   /// expire ou revoque echouera seulement au prochain appel reseau (sync),
   /// jamais bloquant pour la consultation locale.
   Future<bool> sessionValide() async => (await jetonActuel()) != null;
+
+  /// GET /auth/moi, en opportuniste (nom du technicien affiche sur Mes
+  /// interventions). Ne leve jamais : hors ligne, jeton absent ou erreur
+  /// serveur renvoient simplement null, l'affichage du nom n'est qu'un
+  /// complement, jamais bloquant.
+  Future<String?> nomTechnicien() async {
+    final jeton = await jetonActuel();
+    if (jeton == null) return null;
+    try {
+      final reponse = await _apiClient.get('/auth/moi', jeton: jeton);
+      return reponse['nom'] as String?;
+    } catch (_) {
+      // Hors ligne (SocketException...), jeton expire (ApiException 401)...
+      // toute erreur reseau est attendue ici et ne doit jamais remonter.
+      return null;
+    }
+  }
 }
