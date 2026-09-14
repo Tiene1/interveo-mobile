@@ -57,12 +57,12 @@ mobile/
       api_client.dart             (wrapper réseau, ajoute le JWT, base = config API_URL)
       auth_service.dart           (login, stockage sécurisé du JWT, lecture au démarrage)
       token_storage.dart          (abstraction testable sur flutter_secure_storage)
-      sync_service.dart           (US2.11, pull GET /sync/interventions fait ; push/conflit pas encore, cf. section 4)
+      sync_service.dart           (US2.11 : pull + push des clotures ; push des photos pas encore, cf. section 4)
       photo_stockage_service.dart (US2.7/US2.8 : capture image_picker + copie dans le stockage permanent de l'app)
     data/
       local_db.dart               (base locale : tables intervention et photo + champs de synchro)
       dao/
-        intervention_dao.dart     (watchAttribuees, watchParId, mettreAJourSaisie, cloturer, derniereMiseAJour)
+        intervention_dao.dart     (watchAttribuees, watchParId, mettreAJourSaisie, cloturer, listerAPousser, marquerConfirmee, derniereMiseAJour)
         photo_dao.dart            (watchPourIntervention, listerPourIntervention, ajouter, supprimer)
     state/
       interventions_provider.dart (Riverpod : databaseProvider, liste attribuee US2.1, detail par id US2.2/US2.3, photos par intervention US2.7/US2.8, syncServiceProvider, photoStockageServiceProvider)
@@ -111,7 +111,11 @@ Déclenchée au retour de connectivité, au passage de l'app au premier plan, ou
 2. **Conflit** : si le serveur renvoie `CONFLIT` (intervention annulée entre-temps), la clôture locale est abandonnée, l'intervention est retirée de la liste, et le technicien est prévenu. **L'annulation du directeur gagne.**
 3. **Pull** : `GET /sync/interventions?depuis=<dernier misAJourLe reçu>`, upsert dans la base locale.
 
-**Implémenté (2026-09-13)** : uniquement le pull (`sync_service.dart`). `InterventionDao.derniereMiseAJour()` sert de curseur `depuis` (le plus récent `misAJourLe` connu localement, `null` = première synchro, tout est demandé). Déclencheurs presents : automatique à l'ouverture de `MesInterventionsScreen`, bouton dans l'en-tête, tirer-pour-rafraîchir. Déclencheurs **absents** (dépendent de capacités non construites) : retour de connectivité (`connectivity_plus` installé mais pas encore écouté) et passage au premier plan (`WidgetsBindingObserver` pas encore ajouté) — dette technique notée, pas oubliée. Push et résolution de conflit restent un ticket à part entière (POST /sync/interventions, upload photos, gestion CONFLIT). Le badge « synchronisée » lit directement `intervention.statutSync` sur chaque ligne (pas de provider dédié).
+**Pull implémenté (2026-09-13)** : `sync_service.dart`. `InterventionDao.derniereMiseAJour()` sert de curseur `depuis` (le plus récent `misAJourLe` connu localement, `null` = première synchro, tout est demandé). Déclencheurs presents : automatique à l'ouverture de `MesInterventionsScreen`, bouton dans l'en-tête, tirer-pour-rafraîchir. Déclencheurs **absents** (dépendent de capacités non construites) : retour de connectivité (`connectivity_plus` installé mais pas encore écouté) et passage au premier plan (`WidgetsBindingObserver` pas encore ajouté) — dette technique notée, pas oubliée. Le badge « synchronisée » lit directement `intervention.statutSync` sur chaque ligne (pas de provider dédié).
+
+**Push des clotures implémenté (2026-09-14)** : `SyncService.pousserInterventions()` envoie `POST /sync/interventions` pour chaque intervention `statutSync = LOCAL` **et** `statut = REALISEE` (`InterventionDao.listerAPousser()` — une intervention seulement en cours de saisie, encore PLANIFIEE, n'a pas d'endpoint serveur pour une sauvegarde partielle et n'est donc jamais poussée). Ne fait aucun appel reseau si rien a pousser. Par resultat : `CONFIRME` marque la ligne `statutSync = CONFIRME` (`InterventionDao.marquerConfirmee()`) ; `CONFLIT` ne touche pas la ligne localement. `SyncService.synchroniser()` (nouvelle orchestration, appelee par le bouton/tirer-pour-rafraichir/ouverture de `MesInterventionsScreen` a la place de `tirerInterventions()` seul) pousse puis re-tire systematiquement : le pull qui suit un conflit **ecrase** la ligne locale avec l'etat serveur (upsert), ce qui applique naturellement la regle "l'annulation du directeur gagne" sans logique de resolution dediee. Le technicien est prevenu par un `SnackBar` (`MesInterventionsScreen`) si `synchroniser()` renvoie au moins un conflit.
+
+Hors perimetre (ticket a part) : push des photos (`POST /interventions/:id/photos`), qui reste independant — chaque `Photo` garde son propre `statutSync`, jamais agrege dans le badge de l'intervention.
 
 ### Saisie au fil de l'eau (US2.9) — implémenté le 2026-09-13
 - `InterventionDao.mettreAJourSaisie()` : chaque textarea a son propre anti-rebond (`Timer` 400 ms) sur `CompleterInterventionScreen`, écrit dans la base locale des que l'utilisateur arrete de taper, marque `statutSync = LOCAL`. Pas de bouton Enregistrer. À la réouverture, les valeurs saisies sont présentes (relues depuis la base au premier chargement de l'écran, jamais réécrasées ensuite par le flux réactif pour ne pas entrer en conflit avec la saisie en cours).

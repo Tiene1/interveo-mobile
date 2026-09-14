@@ -56,6 +56,22 @@ class ApiClient {
     return reponse.body.isEmpty ? [] : jsonDecode(reponse.body) as List<dynamic>;
   }
 
+  /// Comme [post], mais envoie un tableau JSON a la racine du corps et
+  /// attend un tableau JSON en reponse (ex. POST /sync/interventions).
+  Future<List<dynamic>> postListe(
+    String chemin, {
+    required List<dynamic> corps,
+    String? jeton,
+  }) async {
+    final reponse = await _client.post(
+      Uri.parse('$apiBaseUrl$chemin'),
+      headers: _entetes(jeton),
+      body: jsonEncode(corps),
+    );
+    _leverSiErreur(reponse);
+    return reponse.body.isEmpty ? [] : jsonDecode(reponse.body) as List<dynamic>;
+  }
+
   Map<String, String> _entetes(String? jeton) => {
         'Content-Type': 'application/json',
         if (jeton != null) 'Authorization': 'Bearer $jeton',

@@ -82,4 +82,21 @@ class InterventionDao extends DatabaseAccessor<AppDatabase>
       ),
     );
   }
+
+  /// US2.11 (volet push) : clotures locales pretes a etre envoyees. Une
+  /// intervention seulement modifiee (saisie en cours, pas encore cloturee)
+  /// est aussi LOCAL mais reste PLANIFIEE : le serveur n'a pas d'endpoint
+  /// pour une sauvegarde partielle, donc on ne pousse que les clotures.
+  Future<List<Intervention>> listerAPousser() {
+    return (select(interventions)
+          ..where((i) => i.statutSync.equalsValue(StatutSync.local))
+          ..where((i) => i.statut.equalsValue(StatutIntervention.realisee)))
+        .get();
+  }
+
+  /// Cloture confirmee par le serveur.
+  Future<void> marquerConfirmee(String idServeur) {
+    return (update(interventions)..where((i) => i.idServeur.equals(idServeur)))
+        .write(const InterventionsCompanion(statutSync: Value(StatutSync.confirme)));
+  }
 }

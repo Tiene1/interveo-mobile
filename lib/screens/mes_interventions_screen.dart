@@ -44,7 +44,18 @@ class _MesInterventionsScreenState
     if (_synchronisationEnCours) return;
     setState(() => _synchronisationEnCours = true);
     try {
-      await ref.read(syncServiceProvider).tirerInterventions();
+      final conflits = await ref.read(syncServiceProvider).synchroniser();
+      if (mounted && conflits > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              conflits == 1
+                  ? "1 intervention a été annulée entre-temps, la clôture locale a été abandonnée."
+                  : '$conflits interventions ont été annulées entre-temps, les clôtures locales ont été abandonnées.',
+            ),
+          ),
+        );
+      }
     } catch (erreur) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

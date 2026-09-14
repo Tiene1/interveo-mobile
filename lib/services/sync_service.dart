@@ -6,10 +6,8 @@ import '../models/enums.dart';
 import 'api_client.dart';
 import 'token_storage.dart';
 
-/// US2.11, volet pull uniquement pour l'instant. Le push (cloture + photos)
-/// et la resolution de conflit restent un ticket a part : rien ne met encore
-/// statutSync a LOCAL cote mobile (l'ecran Completer intervention n'existe
-/// pas), donc il n'y a rien a pousser pour le moment.
+/// US2.11. Pull (GET /sync/interventions) et push des clotures
+/// (POST /sync/interventions). Le push des photos reste un ticket a part.
 class SyncService {
   SyncService({
     required this._interventionDao,
@@ -38,6 +36,56 @@ class SyncService {
       await _interventionDao.upsert(_versCompanion(item as Map<String, dynamic>));
     }
     return items.length;
+  }
+
+  /// Envoie au serveur les clotures locales (`statutSync = LOCAL`,
+  /// `statut = REALISEE`) via POST /sync/interventions. Marque `CONFIRME`
+  /// les clotures acceptees. Renvoie le nombre de conflits (intervention
+  /// annulee ou deja traitee entre-temps par le directeur) : ces lignes ne
+  /// sont pas modifiees ici, `tirerInterventions()` (appele ensuite par
+  /// [synchroniser]) les ecrasera avec l'etat serveur, qui fait foi.
+  Future<int> pousserInterventions() async {
+    final aPousser = await _interventionDao.listerAPousser();
+    if (aPousser.isEmpty) return 0;
+
+    final jeton = await _tokenStorage.lire(cleJetonJwt);
+    final corps = aPousser
+        .map(
+          (intervention) => {
+            'idServeur': intervention.idServeur,
+            'problemeConstate': intervention.problemeConstate,
+            'travauxRealises': intervention.travauxRealises,
+            'statut': 'REALISEE',
+            'dateRealisation': intervention.dateRealisation!.toUtc().toIso8601String(),
+          },
+        )
+        .toList();
+
+    final resultats = await _apiClient.postListe(
+      '/sync/interventions',
+      corps: corps,
+      jeton: jeton,
+    );
+
+    var conflits = 0;
+    for (final resultat in resultats) {
+      final item = resultat as Map<String, dynamic>;
+      if (item['resultat'] == 'CONFIRME') {
+        await _interventionDao.marquerConfirmee(item['idServeur'] as String);
+      } else {
+        conflits++;
+      }
+    }
+    return conflits;
+  }
+
+  /// Orchestration complete de la synchro : pousse les clotures locales puis
+  /// re-tire les interventions (fait foi en cas de conflit, cf. "l'annulation
+  /// gagne" dans docs/architecture.md). Renvoie le nombre de conflits.
+  Future<int> synchroniser() async {
+    final conflits = await pousserInterventions();
+    await tirerInterventions();
+    return conflits;
   }
 
   InterventionsCompanion _versCompanion(Map<String, dynamic> json) {

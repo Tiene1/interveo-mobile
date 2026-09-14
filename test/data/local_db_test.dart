@@ -86,4 +86,35 @@ void main() {
     final photos = await db.photoDao.watchPourIntervention('i-1').first;
     expect(photos, isEmpty);
   });
+
+  test('listerAPousser renvoie les clotures locales, pas les saisies en cours', () async {
+    await db.interventionDao.upsert(interventionExemple(idServeur: 'i-cloturee').copyWith(
+      statut: const Value(StatutIntervention.realisee),
+      statutSync: const Value(StatutSync.local),
+      dateRealisation: Value(DateTime(2026, 9, 14, 15)),
+    ));
+    await db.interventionDao.upsert(interventionExemple(idServeur: 'i-en-cours').copyWith(
+      statutSync: const Value(StatutSync.local),
+    ));
+    await db.interventionDao.upsert(interventionExemple(idServeur: 'i-confirmee').copyWith(
+      statut: const Value(StatutIntervention.realisee),
+      statutSync: const Value(StatutSync.confirme),
+    ));
+
+    final aPousser = await db.interventionDao.listerAPousser();
+
+    expect(aPousser.map((i) => i.idServeur), ['i-cloturee']);
+  });
+
+  test('marquerConfirmee passe le statutSync a confirme', () async {
+    await db.interventionDao.upsert(interventionExemple().copyWith(
+      statut: const Value(StatutIntervention.realisee),
+      statutSync: const Value(StatutSync.local),
+    ));
+
+    await db.interventionDao.marquerConfirmee('i-1');
+
+    final intervention = await db.interventionDao.parId('i-1');
+    expect(intervention!.statutSync, StatutSync.confirme);
+  });
 }

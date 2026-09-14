@@ -76,4 +76,31 @@ void main() {
       throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 401)),
     );
   });
+
+  test('postListe envoie un tableau JSON et decode le tableau de reponse', () async {
+    final client = MockClient((request) async {
+      expect(request.url.path, '/sync/interventions');
+      expect(request.body, '[{"idServeur":"i-1"}]');
+      return http.Response('[{"idServeur":"i-1","resultat":"CONFIRME"}]', 200);
+    });
+
+    final reponse = await ApiClient(client: client).postListe(
+      '/sync/interventions',
+      corps: [
+        {'idServeur': 'i-1'},
+      ],
+    );
+
+    expect(reponse, hasLength(1));
+    expect((reponse.first as Map)['resultat'], 'CONFIRME');
+  });
+
+  test('postListe leve une ApiException sur une reponse d erreur', () async {
+    final client = MockClient((request) async => http.Response('{"message":"corps invalide"}', 400));
+
+    await expectLater(
+      ApiClient(client: client).postListe('/sync/interventions', corps: const []),
+      throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', 400)),
+    );
+  });
 }
