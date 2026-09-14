@@ -634,17 +634,25 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     // "Planifiees" reste par date prevue (utile pour "quoi faire ensuite"),
     // ce badge sert a reperer une nouvelle assignation sans avoir a changer
     // ce tri (demande Cedric du 2026-09-14, tranchee apres discussion sur le
-    // compromis entre les deux).
-    final estNouvelle =
+    // compromis entre les deux). Uniquement sur une Planifiee pas encore
+    // touchee (ni cloturee, ni deja "a synchroniser" - un technicien qui a
+    // commence a saisir a deja vu l'intervention) et pas encore consultee
+    // (vueLe, marque au tap ci-dessous : disparait une fois le detail ouvert).
+    final estNouvelle = intervention.statut == StatutIntervention.planifiee &&
+        clotureSynchronisee &&
+        intervention.vueLe == null &&
         DateTime.now().difference(intervention.creeLe) < _dureeNouveaute;
 
     return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) =>
-              DetailInterventionScreen(idServeur: intervention.idServeur),
-        ),
-      ),
+      onTap: () {
+        ref.read(databaseProvider).interventionDao.marquerVue(intervention.idServeur);
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) =>
+                DetailInterventionScreen(idServeur: intervention.idServeur),
+          ),
+        );
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(

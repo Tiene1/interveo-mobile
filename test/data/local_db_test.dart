@@ -118,6 +118,21 @@ void main() {
     expect(intervention!.statutSync, StatutSync.confirme);
   });
 
+  test('marquerVue renseigne vueLe une seule fois', () async {
+    await db.interventionDao.upsert(interventionExemple());
+
+    await db.interventionDao.marquerVue('i-1');
+    final premiereVue = (await db.interventionDao.parId('i-1'))!.vueLe;
+    expect(premiereVue, isNotNull);
+
+    // Un deuxieme appel (ex. re-ouvrir le detail plus tard) ne doit pas
+    // ecraser l'horodatage de premiere consultation.
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await db.interventionDao.marquerVue('i-1');
+    final deuxiemeVue = (await db.interventionDao.parId('i-1'))!.vueLe;
+    expect(deuxiemeVue, premiereVue);
+  });
+
   test('photoDao.listerAPousser renvoie uniquement les photos locales', () async {
     await db.interventionDao.upsert(interventionExemple());
     await db.photoDao.ajouter(PhotosCompanion.insert(

@@ -365,6 +365,80 @@ void main() {
     },
   );
 
+  testWidgets(
+    "n affiche pas NOUVEAU sur une intervention deja realisee",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(
+          idServeur: 'i-realisee-recente',
+          nomClient: 'Client Realise Recent',
+          datePrevue: DateTime.now().subtract(const Duration(hours: 1)),
+          statut: StatutIntervention.realisee,
+          creeLe: DateTime.now().subtract(const Duration(hours: 2)),
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      expect(find.text('NOUVEAU'), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
+    "n affiche pas NOUVEAU sur une planifiee deja a synchroniser",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(
+          idServeur: 'i-en-cours',
+          nomClient: 'Client Deja Commence',
+          datePrevue: DateTime.now().add(const Duration(days: 1)),
+          creeLe: DateTime.now().subtract(const Duration(hours: 1)),
+          statutSync: StatutSync.local,
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      expect(find.text('NOUVEAU'), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
+    "taper sur une nouvelle intervention marque comme vue et fait disparaitre NOUVEAU",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(
+          idServeur: 'i-a-lire',
+          nomClient: 'Client A Lire',
+          datePrevue: DateTime.now().add(const Duration(days: 1)),
+          creeLe: DateTime.now().subtract(const Duration(hours: 1)),
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+      expect(find.text('NOUVEAU'), findsOneWidget);
+
+      await tester.tap(find.text('Client A Lire'));
+      await tester.pumpAndSettle();
+
+      final intervention = await db.interventionDao.parId('i-a-lire');
+      expect(intervention!.vueLe, isNotNull);
+
+      await tester.tap(find.byIcon(Icons.arrow_back));
+      await tester.pumpAndSettle();
+      expect(find.text('NOUVEAU'), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
   testWidgets('affiche la ligne date du jour au dessus du titre', (tester) async {
     final db = await _dbAvecInterventions([]);
 

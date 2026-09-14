@@ -214,6 +214,15 @@ class $InterventionsTable extends Interventions
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
+  static const VerificationMeta _vueLeMeta = const VerificationMeta('vueLe');
+  @override
+  late final GeneratedColumn<DateTime> vueLe = GeneratedColumn<DateTime>(
+    'vue_le',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     idServeur,
@@ -235,6 +244,7 @@ class $InterventionsTable extends Interventions
     misAJourLe,
     statutSync,
     modifieLocalementLe,
+    vueLe,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -386,6 +396,12 @@ class $InterventionsTable extends Interventions
         ),
       );
     }
+    if (data.containsKey('vue_le')) {
+      context.handle(
+        _vueLeMeta,
+        vueLe.isAcceptableOrUnknown(data['vue_le']!, _vueLeMeta),
+      );
+    }
     return context;
   }
 
@@ -477,6 +493,10 @@ class $InterventionsTable extends Interventions
         DriftSqlType.dateTime,
         data['${effectivePrefix}modifie_localement_le'],
       ),
+      vueLe: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}vue_le'],
+      ),
     );
   }
 
@@ -521,6 +541,11 @@ class Intervention extends DataClass implements Insertable<Intervention> {
   final DateTime misAJourLe;
   final StatutSync statutSync;
   final DateTime? modifieLocalementLe;
+
+  /// Horodatage de premiere consultation du detail par le technicien (purement
+  /// local, jamais synchronise) : sert a masquer le badge "Nouveau" une fois
+  /// l'intervention lue (schemaVersion 2, cf. AppDatabase.migration).
+  final DateTime? vueLe;
   const Intervention({
     required this.idServeur,
     required this.nomClient,
@@ -541,6 +566,7 @@ class Intervention extends DataClass implements Insertable<Intervention> {
     required this.misAJourLe,
     required this.statutSync,
     this.modifieLocalementLe,
+    this.vueLe,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -590,6 +616,9 @@ class Intervention extends DataClass implements Insertable<Intervention> {
     if (!nullToAbsent || modifieLocalementLe != null) {
       map['modifie_localement_le'] = Variable<DateTime>(modifieLocalementLe);
     }
+    if (!nullToAbsent || vueLe != null) {
+      map['vue_le'] = Variable<DateTime>(vueLe);
+    }
     return map;
   }
 
@@ -630,6 +659,9 @@ class Intervention extends DataClass implements Insertable<Intervention> {
       modifieLocalementLe: modifieLocalementLe == null && nullToAbsent
           ? const Value.absent()
           : Value(modifieLocalementLe),
+      vueLe: vueLe == null && nullToAbsent
+          ? const Value.absent()
+          : Value(vueLe),
     );
   }
 
@@ -666,6 +698,7 @@ class Intervention extends DataClass implements Insertable<Intervention> {
       modifieLocalementLe: serializer.fromJson<DateTime?>(
         json['modifieLocalementLe'],
       ),
+      vueLe: serializer.fromJson<DateTime?>(json['vueLe']),
     );
   }
   @override
@@ -697,6 +730,7 @@ class Intervention extends DataClass implements Insertable<Intervention> {
         $InterventionsTable.$converterstatutSync.toJson(statutSync),
       ),
       'modifieLocalementLe': serializer.toJson<DateTime?>(modifieLocalementLe),
+      'vueLe': serializer.toJson<DateTime?>(vueLe),
     };
   }
 
@@ -720,6 +754,7 @@ class Intervention extends DataClass implements Insertable<Intervention> {
     DateTime? misAJourLe,
     StatutSync? statutSync,
     Value<DateTime?> modifieLocalementLe = const Value.absent(),
+    Value<DateTime?> vueLe = const Value.absent(),
   }) => Intervention(
     idServeur: idServeur ?? this.idServeur,
     nomClient: nomClient ?? this.nomClient,
@@ -752,6 +787,7 @@ class Intervention extends DataClass implements Insertable<Intervention> {
     modifieLocalementLe: modifieLocalementLe.present
         ? modifieLocalementLe.value
         : this.modifieLocalementLe,
+    vueLe: vueLe.present ? vueLe.value : this.vueLe,
   );
   Intervention copyWithCompanion(InterventionsCompanion data) {
     return Intervention(
@@ -800,6 +836,7 @@ class Intervention extends DataClass implements Insertable<Intervention> {
       modifieLocalementLe: data.modifieLocalementLe.present
           ? data.modifieLocalementLe.value
           : this.modifieLocalementLe,
+      vueLe: data.vueLe.present ? data.vueLe.value : this.vueLe,
     );
   }
 
@@ -824,7 +861,8 @@ class Intervention extends DataClass implements Insertable<Intervention> {
           ..write('creeLe: $creeLe, ')
           ..write('misAJourLe: $misAJourLe, ')
           ..write('statutSync: $statutSync, ')
-          ..write('modifieLocalementLe: $modifieLocalementLe')
+          ..write('modifieLocalementLe: $modifieLocalementLe, ')
+          ..write('vueLe: $vueLe')
           ..write(')'))
         .toString();
   }
@@ -850,6 +888,7 @@ class Intervention extends DataClass implements Insertable<Intervention> {
     misAJourLe,
     statutSync,
     modifieLocalementLe,
+    vueLe,
   );
   @override
   bool operator ==(Object other) =>
@@ -873,7 +912,8 @@ class Intervention extends DataClass implements Insertable<Intervention> {
           other.creeLe == this.creeLe &&
           other.misAJourLe == this.misAJourLe &&
           other.statutSync == this.statutSync &&
-          other.modifieLocalementLe == this.modifieLocalementLe);
+          other.modifieLocalementLe == this.modifieLocalementLe &&
+          other.vueLe == this.vueLe);
 }
 
 class InterventionsCompanion extends UpdateCompanion<Intervention> {
@@ -896,6 +936,7 @@ class InterventionsCompanion extends UpdateCompanion<Intervention> {
   final Value<DateTime> misAJourLe;
   final Value<StatutSync> statutSync;
   final Value<DateTime?> modifieLocalementLe;
+  final Value<DateTime?> vueLe;
   final Value<int> rowid;
   const InterventionsCompanion({
     this.idServeur = const Value.absent(),
@@ -917,6 +958,7 @@ class InterventionsCompanion extends UpdateCompanion<Intervention> {
     this.misAJourLe = const Value.absent(),
     this.statutSync = const Value.absent(),
     this.modifieLocalementLe = const Value.absent(),
+    this.vueLe = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   InterventionsCompanion.insert({
@@ -939,6 +981,7 @@ class InterventionsCompanion extends UpdateCompanion<Intervention> {
     required DateTime misAJourLe,
     required StatutSync statutSync,
     this.modifieLocalementLe = const Value.absent(),
+    this.vueLe = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : idServeur = Value(idServeur),
        nomClient = Value(nomClient),
@@ -971,6 +1014,7 @@ class InterventionsCompanion extends UpdateCompanion<Intervention> {
     Expression<DateTime>? misAJourLe,
     Expression<String>? statutSync,
     Expression<DateTime>? modifieLocalementLe,
+    Expression<DateTime>? vueLe,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -994,6 +1038,7 @@ class InterventionsCompanion extends UpdateCompanion<Intervention> {
       if (statutSync != null) 'statut_sync': statutSync,
       if (modifieLocalementLe != null)
         'modifie_localement_le': modifieLocalementLe,
+      if (vueLe != null) 'vue_le': vueLe,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1018,6 +1063,7 @@ class InterventionsCompanion extends UpdateCompanion<Intervention> {
     Value<DateTime>? misAJourLe,
     Value<StatutSync>? statutSync,
     Value<DateTime?>? modifieLocalementLe,
+    Value<DateTime?>? vueLe,
     Value<int>? rowid,
   }) {
     return InterventionsCompanion(
@@ -1040,6 +1086,7 @@ class InterventionsCompanion extends UpdateCompanion<Intervention> {
       misAJourLe: misAJourLe ?? this.misAJourLe,
       statutSync: statutSync ?? this.statutSync,
       modifieLocalementLe: modifieLocalementLe ?? this.modifieLocalementLe,
+      vueLe: vueLe ?? this.vueLe,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1114,6 +1161,9 @@ class InterventionsCompanion extends UpdateCompanion<Intervention> {
         modifieLocalementLe.value,
       );
     }
+    if (vueLe.present) {
+      map['vue_le'] = Variable<DateTime>(vueLe.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1142,6 +1192,7 @@ class InterventionsCompanion extends UpdateCompanion<Intervention> {
           ..write('misAJourLe: $misAJourLe, ')
           ..write('statutSync: $statutSync, ')
           ..write('modifieLocalementLe: $modifieLocalementLe, ')
+          ..write('vueLe: $vueLe, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1671,6 +1722,7 @@ typedef $$InterventionsTableCreateCompanionBuilder =
       required DateTime misAJourLe,
       required StatutSync statutSync,
       Value<DateTime?> modifieLocalementLe,
+      Value<DateTime?> vueLe,
       Value<int> rowid,
     });
 typedef $$InterventionsTableUpdateCompanionBuilder =
@@ -1694,6 +1746,7 @@ typedef $$InterventionsTableUpdateCompanionBuilder =
       Value<DateTime> misAJourLe,
       Value<StatutSync> statutSync,
       Value<DateTime?> modifieLocalementLe,
+      Value<DateTime?> vueLe,
       Value<int> rowid,
     });
 
@@ -1833,6 +1886,11 @@ class $$InterventionsTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<DateTime> get vueLe => $composableBuilder(
+    column: $table.vueLe,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> photosRefs(
     Expression<bool> Function($$PhotosTableFilterComposer f) f,
   ) {
@@ -1962,6 +2020,11 @@ class $$InterventionsTableOrderingComposer
     column: $table.modifieLocalementLe,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<DateTime> get vueLe => $composableBuilder(
+    column: $table.vueLe,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$InterventionsTableAnnotationComposer
@@ -2058,6 +2121,9 @@ class $$InterventionsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<DateTime> get vueLe =>
+      $composableBuilder(column: $table.vueLe, builder: (column) => column);
+
   Expression<T> photosRefs<T extends Object>(
     Expression<T> Function($$PhotosTableAnnotationComposer a) f,
   ) {
@@ -2131,6 +2197,7 @@ class $$InterventionsTableTableManager
                 Value<DateTime> misAJourLe = const Value.absent(),
                 Value<StatutSync> statutSync = const Value.absent(),
                 Value<DateTime?> modifieLocalementLe = const Value.absent(),
+                Value<DateTime?> vueLe = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => InterventionsCompanion(
                 idServeur: idServeur,
@@ -2152,6 +2219,7 @@ class $$InterventionsTableTableManager
                 misAJourLe: misAJourLe,
                 statutSync: statutSync,
                 modifieLocalementLe: modifieLocalementLe,
+                vueLe: vueLe,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2175,6 +2243,7 @@ class $$InterventionsTableTableManager
                 required DateTime misAJourLe,
                 required StatutSync statutSync,
                 Value<DateTime?> modifieLocalementLe = const Value.absent(),
+                Value<DateTime?> vueLe = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => InterventionsCompanion.insert(
                 idServeur: idServeur,
@@ -2196,6 +2265,7 @@ class $$InterventionsTableTableManager
                 misAJourLe: misAJourLe,
                 statutSync: statutSync,
                 modifieLocalementLe: modifieLocalementLe,
+                vueLe: vueLe,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

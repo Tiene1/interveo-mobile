@@ -99,4 +99,15 @@ class InterventionDao extends DatabaseAccessor<AppDatabase>
     return (update(interventions)..where((i) => i.idServeur.equals(idServeur)))
         .write(const InterventionsCompanion(statutSync: Value(StatutSync.confirme)));
   }
+
+  /// Premiere consultation du detail par le technicien (badge "Nouveau" sur
+  /// la tuile, cf. MesInterventionsScreen). N'ecrit que si `vueLe` est encore
+  /// nul : n'a pas a etre repoussee au serveur ni a modifier statutSync,
+  /// c'est un etat purement local sans equivalent cote API.
+  Future<void> marquerVue(String idServeur) {
+    return (update(interventions)
+          ..where((i) => i.idServeur.equals(idServeur))
+          ..where((i) => i.vueLe.isNull()))
+        .write(InterventionsCompanion(vueLe: Value(DateTime.now())));
+  }
 }

@@ -33,6 +33,11 @@ class Interventions extends Table {
   TextColumn get statutSync => textEnum<StatutSync>()();
   DateTimeColumn get modifieLocalementLe => dateTime().nullable()();
 
+  /// Horodatage de premiere consultation du detail par le technicien (purement
+  /// local, jamais synchronise) : sert a masquer le badge "Nouveau" une fois
+  /// l'intervention lue (schemaVersion 2, cf. AppDatabase.migration).
+  DateTimeColumn get vueLe => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {idServeur};
 }
@@ -63,10 +68,15 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'sim_interventions'));
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+        onUpgrade: (m, from, to) async {
+          if (from < 2) {
+            await m.addColumn(interventions, interventions.vueLe);
+          }
+        },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
         },
