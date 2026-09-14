@@ -1,12 +1,19 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:sim_interventions/data/local_db.dart';
 import 'package:sim_interventions/models/enums.dart';
 import 'package:sim_interventions/screens/detail_intervention_screen.dart';
 import 'package:sim_interventions/screens/mes_interventions_screen.dart';
+import 'package:sim_interventions/services/api_client.dart';
+import 'package:sim_interventions/services/sync_service.dart';
+import 'package:sim_interventions/state/interventions_provider.dart';
 
 import '../support/app_test_scope.dart';
+import '../support/fake_token_storage.dart';
 
 InterventionsCompanion _intervention({
   required String idServeur,
@@ -39,6 +46,23 @@ Future<AppDatabase> _dbAvecInterventions(List<InterventionsCompanion> interventi
 }
 
 Widget _app(AppDatabase db) => appTest(home: const MesInterventionsScreen(), db: db);
+
+Widget _appAvecClient(AppDatabase db, MockClient client) {
+  return ProviderScope(
+    overrides: [
+      databaseProvider.overrideWithValue(db),
+      syncServiceProvider.overrideWithValue(
+        SyncService(
+          interventionDao: db.interventionDao,
+          photoDao: db.photoDao,
+          apiClient: ApiClient(client: client),
+          tokenStorage: FakeTokenStorage(),
+        ),
+      ),
+    ],
+    child: const MaterialApp(home: MesInterventionsScreen()),
+  );
+}
 
 /// Drift programme un timer interne (duree 0) quand une requete .watch()
 /// se ferme ; sans ce pump supplementaire apres la destruction du widget,
@@ -135,6 +159,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(DetailInterventionScreen), findsOneWidget);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('affiche le code et le message du serveur en cas d erreur API', (tester) async {
+    final db = await _dbAvecInterventions([]);
+    final client = MockClient(
+      (request) async => http.Response('{"message":"Erreur interne"}', 500),
+    );
+
+    await tester.pumpWidget(_appAvecClient(db, client));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Erreur du serveur (500) : Erreur interne'), findsOneWidget);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('affiche un message generique pour une erreur inattendue', (tester) async {
+    final db = await _dbAvecInterventions([]);
+    final client = MockClient((request) async => throw Exception('panne reseau'));
+
+    await tester.pumpWidget(_appAvecClient(db, client));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Synchronisation impossible : Exception: panne reseau'),
+      findsOneWidget,
+    );
 
     await _videLeTimerDeFermeture(tester);
   });

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/local_db.dart';
 import '../models/enums.dart';
+import '../services/api_client.dart';
 import '../state/interventions_provider.dart';
 import '../theme/design_tokens.dart';
 import '../utils/date.dart';
@@ -59,16 +60,23 @@ class _MesInterventionsScreenState
     } catch (erreur) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Synchronisation impossible. Vérifiez votre connexion.',
-            ),
-          ),
+          SnackBar(content: Text(_messageErreurSynchro(erreur))),
         );
       }
     } finally {
       if (mounted) setState(() => _synchronisationEnCours = false);
     }
+  }
+
+  /// Message affiche au technicien : distingue une vraie erreur serveur
+  /// (code + texte du backend) d'un probleme de connexion, plutot qu'un
+  /// message generique "verifiez votre connexion" qui masquait la cause
+  /// reelle (ex. bug cote app, fichier photo manquant).
+  String _messageErreurSynchro(Object erreur) {
+    if (erreur is ApiException) {
+      return 'Erreur du serveur (${erreur.statusCode}) : ${erreur.message}';
+    }
+    return 'Synchronisation impossible : $erreur';
   }
 
   @override
