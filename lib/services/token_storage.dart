@@ -4,9 +4,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// (lecture pour authentifier les appels de synchro).
 const cleJetonJwt = 'jwt';
 
-/// US2.1 (dette technique) : heure de la derniere synchro reussie (ISO8601),
-/// pour que l'indicateur de MesInterventionsScreen survive a un redemarrage
-/// de l'app plutot que de repartir a zero a chaque ouverture d'ecran.
+/// US2.1 : heure de la derniere synchro reussie (ISO8601), pour que
+/// l'indicateur de MesInterventionsScreen survive a un redemarrage de l'app
+/// plutot que de repartir a zero a chaque ouverture d'ecran.
 const cleDerniereSynchro = 'derniere_synchro';
 
 /// Abstraction du stockage du jeton : permet de substituer une fausse
