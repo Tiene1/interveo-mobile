@@ -135,7 +135,7 @@ class _CompleterInterventionScreenState
             return Column(
               children: [
                 _appBar(estCloturee),
-                if (estCloturee) _bandeauSucces(data),
+                if (estCloturee) _bandeauSucces(data, photos),
                 Expanded(child: _corps(data, estCloturee, photos)),
                 if (!estCloturee) _barreBas(),
               ],
@@ -204,8 +204,13 @@ class _CompleterInterventionScreenState
     );
   }
 
-  Widget _bandeauSucces(Intervention data) {
-    final synchronisee = data.statutSync == StatutSync.confirme;
+  Widget _bandeauSucces(Intervention data, List<Photo> photos) {
+    final clotureSynchronisee = data.statutSync == StatutSync.confirme;
+    final photosSynchronisees =
+        photos.every((p) => p.statutSync == StatutSync.confirme);
+    final etiquette = !clotureSynchronisee
+        ? 'À SYNCHRONISER'
+        : (photosSynchronisees ? 'SYNCHRONISÉE' : 'PHOTOS À SYNCHRONISER');
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       color: const Color(0xFFDCFCE7), // --success-bg
@@ -225,7 +230,7 @@ class _CompleterInterventionScreenState
                 ),
               ),
               Text(
-                synchronisee ? 'SYNCHRONISÉE' : 'À SYNCHRONISER',
+                etiquette,
                 style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,

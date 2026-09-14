@@ -36,6 +36,17 @@ final photosParInterventionProvider = StreamProvider.family((ref, String idServe
   return db.photoDao.watchPourIntervention(idServeur);
 });
 
+/// Ids serveur des interventions ayant au moins une photo pas encore
+/// confirmee par le serveur : une intervention peut etre elle-meme
+/// synchronisee (cloture confirmee) tout en ayant des photos en attente,
+/// le badge de liste doit le distinguer (voir docs/architecture.md).
+final interventionsAvecPhotosEnAttenteProvider = StreamProvider<Set<String>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return db.photoDao
+      .watchNonConfirmees()
+      .map((photos) => photos.map((p) => p.interventionIdLocal).toSet());
+});
+
 /// Instance unique, testable via overrideWithValue (voir FakeTokenStorage
 /// pour le meme principe).
 final photoStockageServiceProvider = Provider<PhotoStockageService>((ref) {

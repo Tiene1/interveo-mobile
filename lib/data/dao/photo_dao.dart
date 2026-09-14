@@ -48,4 +48,14 @@ class PhotoDao extends DatabaseAccessor<AppDatabase> with _$PhotoDaoMixin {
       ),
     );
   }
+
+  /// Photos pas encore confirmees par le serveur (LOCAL ou ENVOYE), toutes
+  /// interventions confondues. Sert a signaler qu'une intervention par
+  /// ailleurs synchronisee a quand meme des photos en attente (le badge de
+  /// l'intervention ne suffit pas a lui seul, cf. docs/architecture.md).
+  Stream<List<Photo>> watchNonConfirmees() {
+    return (select(
+      photos,
+    )..where((p) => p.statutSync.equalsValue(StatutSync.confirme).not())).watch();
+  }
 }

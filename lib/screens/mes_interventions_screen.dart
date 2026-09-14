@@ -119,6 +119,9 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   @override
   Widget build(BuildContext context) {
     final interventions = ref.watch(interventionsAttribueesProvider);
+    final idsAvecPhotosEnAttente =
+        ref.watch(interventionsAvecPhotosEnAttenteProvider).asData?.value ??
+        const <String>{};
 
     return Scaffold(
       backgroundColor: paper,
@@ -131,13 +134,13 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
               style: const TextStyle(color: danger),
             ),
           ),
-          data: (toutes) => _corps(toutes),
+          data: (toutes) => _corps(toutes, idsAvecPhotosEnAttente),
         ),
       ),
     );
   }
 
-  Widget _corps(List<Intervention> toutes) {
+  Widget _corps(List<Intervention> toutes, Set<String> idsAvecPhotosEnAttente) {
     final planifiees = toutes
         .where((i) => i.statut == StatutIntervention.planifiee)
         .toList();
@@ -157,7 +160,9 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
         Expanded(
           child: RefreshIndicator(
             onRefresh: _synchroniser,
-            child: affichees.isEmpty ? _etatVide() : _liste(affichees),
+            child: affichees.isEmpty
+                ? _etatVide()
+                : _liste(affichees, idsAvecPhotosEnAttente),
           ),
         ),
       ],
@@ -277,21 +282,28 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     );
   }
 
-  Widget _liste(List<Intervention> interventions) {
+  Widget _liste(List<Intervention> interventions, Set<String> idsAvecPhotosEnAttente) {
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: interventions.length,
       separatorBuilder: (_, _) => const Divider(height: 1, color: lineSoft),
-      itemBuilder: (context, index) => _tuile(interventions[index]),
+      itemBuilder: (context, index) => _tuile(
+        interventions[index],
+        idsAvecPhotosEnAttente.contains(interventions[index].idServeur),
+      ),
     );
   }
 
-  Widget _tuile(Intervention intervention) {
+  Widget _tuile(Intervention intervention, bool aDesPhotosEnAttente) {
     final couleurMarqueur = intervention.statut == StatutIntervention.planifiee
         ? warning
         : success;
-    final synchronisee = intervention.statutSync == StatutSync.confirme;
+    final clotureSynchronisee = intervention.statutSync == StatutSync.confirme;
+    final synchronisee = clotureSynchronisee && !aDesPhotosEnAttente;
+    final etiquetteSynchro = !clotureSynchronisee
+        ? 'À synchroniser'
+        : (aDesPhotosEnAttente ? 'Photos à synchroniser' : 'Synchronisée');
 
     return InkWell(
       onTap: () => Navigator.of(context).push(
@@ -328,7 +340,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        synchronisee ? 'Synchronisée' : 'À synchroniser',
+                        etiquetteSynchro,
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w500,

@@ -175,6 +175,41 @@ void main() {
     await _videLeTimerDeFermeture(tester);
   });
 
+  testWidgets(
+    "indique 'Photos a synchroniser' quand la cloture est confirmee mais pas ses photos",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(
+          idServeur: 'i-1',
+          nomClient: 'Hotel Ivoire',
+          datePrevue: DateTime(2026, 9, 12, 9),
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      // Photo ajoutee apres la synchro automatique d'ouverture (donc jamais
+      // poussee dans ce test) : verifie l'effet reactif du badge sans passer
+      // par le vrai upload multipart, dont la lecture fichier reelle ne se
+      // resout pas sous l'horloge simulee d'un testWidgets (meme famille de
+      // piege que le timer Drift #3323, deja documentee sur ce projet).
+      await db.photoDao.ajouter(PhotosCompanion.insert(
+        interventionIdLocal: 'i-1',
+        categorie: CategoriePhoto.avant,
+        cheminLocal: '/donnees/test/photo.jpg',
+        statutSync: StatutSync.local,
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Photos à synchroniser'), findsOneWidget);
+      expect(find.text('Synchronisée'), findsNothing);
+      expect(find.text('À synchroniser'), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
   testWidgets('taper sur une tuile ouvre le detail de l intervention', (tester) async {
     final db = await _dbAvecInterventions([
       _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),

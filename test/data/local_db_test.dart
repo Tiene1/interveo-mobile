@@ -153,4 +153,24 @@ void main() {
     expect(photos.single.idServeur, 'p-serveur-1');
     expect(photos.single.statutSync, StatutSync.confirme);
   });
+
+  test('photoDao.watchNonConfirmees renvoie les photos locales et envoyees, pas les confirmees', () async {
+    await db.interventionDao.upsert(interventionExemple());
+    await db.photoDao.ajouter(PhotosCompanion.insert(
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.avant,
+      cheminLocal: '/donnees/locale.jpg',
+      statutSync: StatutSync.local,
+    ));
+    await db.photoDao.ajouter(PhotosCompanion.insert(
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.apres,
+      cheminLocal: '/donnees/confirmee.jpg',
+      statutSync: StatutSync.confirme,
+    ));
+
+    final nonConfirmees = await db.photoDao.watchNonConfirmees().first;
+
+    expect(nonConfirmees.map((p) => p.cheminLocal), ['/donnees/locale.jpg']);
+  });
 }

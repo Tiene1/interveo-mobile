@@ -198,6 +198,26 @@ void main() {
     await _videLeTimerDeFermeture(tester);
   });
 
+  testWidgets('affiche PHOTOS A SYNCHRONISER si la cloture est confirmee mais pas les photos', (tester) async {
+    final db = await _dbAvec(_intervention(
+      problemeConstate: 'Climatiseur en panne',
+      travauxRealises: 'Filtre nettoye',
+      statut: StatutIntervention.realisee,
+      dateRealisation: DateTime(2026, 9, 14, 15, 30),
+      statutSync: StatutSync.confirme,
+    ));
+    await _ajouterPhoto(db, categorie: CategoriePhoto.avant);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    expect(find.text('PHOTOS À SYNCHRONISER'), findsOneWidget);
+    expect(find.text('SYNCHRONISÉE'), findsNothing);
+    expect(find.text('À SYNCHRONISER'), findsNothing);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
   testWidgets('les sections photos demarrent a 0 / 2 avec un bouton Ajouter', (tester) async {
     final db = await _dbAvec(_intervention());
 
