@@ -24,3 +24,29 @@ String formatDate(DateTime date) {
   final mois = _deuxChiffres(date.month);
   return '$jour/$mois/${date.year}';
 }
+
+const _joursAbreges = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'];
+const _moisAbreges = [
+  'janv',
+  'févr',
+  'mars',
+  'avr',
+  'mai',
+  'juin',
+  'juil',
+  'août',
+  'sept',
+  'oct',
+  'nov',
+  'déc',
+];
+
+/// Format "Sam. 12 sept · 09:41" utilise dans le bandeau kicker de Mes
+/// interventions (mobile/design/M2 - Mes interventions.html).
+String formatJourDateHeure(DateTime date) {
+  final jour = _joursAbreges[date.weekday - 1];
+  final mois = _moisAbreges[date.month - 1];
+  final heure = _deuxChiffres(date.hour);
+  final minute = _deuxChiffres(date.minute);
+  return '$jour ${date.day} $mois · $heure:$minute';
+}

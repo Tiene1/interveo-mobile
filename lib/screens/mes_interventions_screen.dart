@@ -218,7 +218,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
 
     return Column(
       children: [
-        _entete(),
+        _entete(toutes, idsAvecPhotosEnAttente, idsAvecPhotosEnConflit),
         _metaSynchro(),
         if (_horsLigne) _bandeauHorsLigne(),
         _onglets(toutes.length, planifiees.length, realisees.length),
@@ -234,43 +234,132 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     );
   }
 
-  Widget _entete() {
+  Widget _entete(
+    List<Intervention> toutes,
+    Set<String> idsAvecPhotosEnAttente,
+    Set<String> idsAvecPhotosEnConflit,
+  ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text.rich(
-            TextSpan(
-              style: TextStyle(
-                fontFamily: 'Fraunces',
-                fontSize: 28,
-                fontWeight: FontWeight.w400,
-                color: inkColor,
-                letterSpacing: -0.8,
-              ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                TextSpan(text: 'Mes '),
-                TextSpan(
-                  text: 'interventions',
-                  style: TextStyle(fontStyle: FontStyle.italic),
+                _kickerDateHeure(),
+                const SizedBox(height: 6),
+                const Text.rich(
+                  TextSpan(
+                    style: TextStyle(
+                      fontFamily: 'Fraunces',
+                      fontSize: 28,
+                      fontWeight: FontWeight.w400,
+                      color: inkColor,
+                      letterSpacing: -0.8,
+                    ),
+                    children: [
+                      TextSpan(text: 'Mes '),
+                      TextSpan(
+                        text: 'interventions',
+                        style: TextStyle(fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          IconButton(
-            key: const Key('boutonSynchroniser'),
-            onPressed: _synchronisationEnCours ? null : _synchroniser,
-            icon: _synchronisationEnCours
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.sync, size: 20, color: textSoft),
+          const SizedBox(width: 12),
+          _boutonSynchroniser(
+            _couleurIndicateurSynchro(toutes, idsAvecPhotosEnAttente, idsAvecPhotosEnConflit),
           ),
         ],
+      ),
+    );
+  }
+
+  /// Ligne "kicker" au-dessus du titre (mobile/design/M2 - Mes
+  /// interventions.html) : jour, date et heure courants, purement decoratif.
+  Widget _kickerDateHeure() {
+    return Row(
+      key: const Key('kickerDateHeure'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 16, height: 1, color: inkColor),
+        const SizedBox(width: 8),
+        Text(
+          formatJourDateHeure(DateTime.now()).toUpperCase(),
+          style: const TextStyle(
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            color: textWeak,
+            letterSpacing: 1.4,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Vert : tout est synchronise. Orange : une synchro est en cours ou il
+  /// reste des clotures/photos locales non confirmees. Rouge : au moins une
+  /// photo definitivement en conflit (priorite la plus haute, cf. le badge de
+  /// tuile qui applique la meme hierarchie).
+  Color _couleurIndicateurSynchro(
+    List<Intervention> toutes,
+    Set<String> idsAvecPhotosEnAttente,
+    Set<String> idsAvecPhotosEnConflit,
+  ) {
+    if (idsAvecPhotosEnConflit.isNotEmpty) return danger;
+    final clotureEnAttente = toutes.any((i) => i.statutSync != StatutSync.confirme);
+    if (_synchronisationEnCours || clotureEnAttente || idsAvecPhotosEnAttente.isNotEmpty) {
+      return warning;
+    }
+    return success;
+  }
+
+  Widget _boutonSynchroniser(Color couleurIndicateur) {
+    return InkWell(
+      key: const Key('boutonSynchroniser'),
+      onTap: _synchronisationEnCours ? null : _synchroniser,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          border: Border.all(color: line),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Center(
+              child: _synchronisationEnCours
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.sync, size: 16, color: textSoft),
+            ),
+            Positioned(
+              top: -2,
+              right: -2,
+              child: Container(
+                key: const Key('indicateurSynchro'),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: couleurIndicateur,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: paper, width: 2),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -431,15 +520,44 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     Set<String> idsAvecPhotosEnAttente,
     Set<String> idsAvecPhotosEnConflit,
   ) {
-    return ListView.separated(
+    final tuiles = <Widget>[];
+    for (var i = 0; i < interventions.length; i++) {
+      if (i > 0) tuiles.add(const Divider(height: 1, color: lineSoft));
+      tuiles.add(_tuile(
+        interventions[i],
+        idsAvecPhotosEnAttente.contains(interventions[i].idServeur),
+        idsAvecPhotosEnConflit.contains(interventions[i].idServeur),
+      ));
+    }
+    return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: interventions.length,
-      separatorBuilder: (_, _) => const Divider(height: 1, color: lineSoft),
-      itemBuilder: (context, index) => _tuile(
-        interventions[index],
-        idsAvecPhotosEnAttente.contains(interventions[index].idServeur),
-        idsAvecPhotosEnConflit.contains(interventions[index].idServeur),
+      children: [_indiceTirerPourSynchroniser(), ...tuiles],
+    );
+  }
+
+  /// Repere visuel (mobile/design/M2 - Mes interventions.html) : fait partie
+  /// du contenu scrollable, disparait donc quand on descend dans la liste,
+  /// coherent avec le geste de tirer-pour-rafraichir deja branche via
+  /// [RefreshIndicator] sur [_corps].
+  Widget _indiceTirerPourSynchroniser() {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.arrow_downward, size: 12, color: textWeak),
+          SizedBox(width: 6),
+          Text(
+            'TIREZ POUR SYNCHRONISER',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: textWeak,
+              letterSpacing: 0.4,
+            ),
+          ),
+        ],
       ),
     );
   }

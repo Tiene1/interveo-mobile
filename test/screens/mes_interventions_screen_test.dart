@@ -17,6 +17,7 @@ import 'package:sim_interventions/services/auth_service.dart';
 import 'package:sim_interventions/services/sync_service.dart';
 import 'package:sim_interventions/services/token_storage.dart';
 import 'package:sim_interventions/state/interventions_provider.dart';
+import 'package:sim_interventions/theme/design_tokens.dart';
 
 import '../support/app_test_scope.dart';
 import '../support/fake_token_storage.dart';
@@ -187,6 +188,102 @@ void main() {
 
     await _videLeTimerDeFermeture(tester);
   });
+
+  testWidgets('affiche la ligne date du jour au dessus du titre', (tester) async {
+    final db = await _dbAvecInterventions([]);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('kickerDateHeure')), findsOneWidget);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('affiche TIREZ POUR SYNCHRONISER au dessus d une liste non vide', (tester) async {
+    final db = await _dbAvecInterventions([
+      _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),
+    ]);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    expect(find.text('TIREZ POUR SYNCHRONISER'), findsOneWidget);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets("n affiche pas l indice de synchro quand la liste est vide", (tester) async {
+    final db = await _dbAvecInterventions([]);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    expect(find.text('TIREZ POUR SYNCHRONISER'), findsNothing);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets('l indicateur du bouton de synchro est vert quand tout est synchronise', (tester) async {
+    final db = await _dbAvecInterventions([
+      _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),
+    ]);
+
+    await tester.pumpWidget(_app(db));
+    await tester.pumpAndSettle();
+
+    final indicateur = tester.widget<Container>(find.byKey(const Key('indicateurSynchro')));
+    expect((indicateur.decoration as BoxDecoration).color, success);
+
+    await _videLeTimerDeFermeture(tester);
+  });
+
+  testWidgets(
+    'l indicateur du bouton de synchro est orange quand une cloture reste a synchroniser',
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(
+          idServeur: 'i-1',
+          nomClient: 'Hotel Ivoire',
+          datePrevue: DateTime(2026, 9, 12, 9),
+          statutSync: StatutSync.local,
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      final indicateur = tester.widget<Container>(find.byKey(const Key('indicateurSynchro')));
+      expect((indicateur.decoration as BoxDecoration).color, warning);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
+    'l indicateur du bouton de synchro est rouge quand une photo est en conflit',
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      await db.photoDao.ajouter(PhotosCompanion.insert(
+        interventionIdLocal: 'i-1',
+        categorie: CategoriePhoto.avant,
+        cheminLocal: '/donnees/test/photo.jpg',
+        statutSync: StatutSync.conflit,
+      ));
+      await tester.pumpAndSettle();
+
+      final indicateur = tester.widget<Container>(find.byKey(const Key('indicateurSynchro')));
+      expect((indicateur.decoration as BoxDecoration).color, danger);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
 
   testWidgets("indique 'A synchroniser' pour une intervention modifiee localement", (tester) async {
     final db = await _dbAvecInterventions([
