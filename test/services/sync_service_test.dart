@@ -257,6 +257,33 @@ void main() {
     expect(intervention.statutSync, StatutSync.confirme);
   });
 
+  test('derniereSynchroReussie est null tant qu aucune synchro n a reussi', () async {
+    final service = SyncService(
+      interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
+      apiClient: ApiClient(),
+      tokenStorage: FakeTokenStorage(),
+    );
+
+    expect(await service.derniereSynchroReussie(), isNull);
+  });
+
+  test('synchroniser persiste l heure de succes, lisible via derniereSynchroReussie', () async {
+    final client = MockClient((request) async => http.Response('[]', 200));
+    final service = SyncService(
+      interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
+      apiClient: ApiClient(client: client),
+      tokenStorage: FakeTokenStorage(),
+    );
+
+    await service.synchroniser();
+
+    final derniere = await service.derniereSynchroReussie();
+    expect(derniere, isNotNull);
+    expect(DateTime.now().difference(derniere!).inSeconds, lessThan(5));
+  });
+
   Future<File> creerFichierTemp() async {
     final fichier = File(
       '${Directory.systemTemp.path}/sync_service_test_${DateTime.now().microsecondsSinceEpoch}.jpg',

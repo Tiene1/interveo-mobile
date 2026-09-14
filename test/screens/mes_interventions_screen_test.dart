@@ -15,6 +15,7 @@ import 'package:sim_interventions/screens/mes_interventions_screen.dart';
 import 'package:sim_interventions/services/api_client.dart';
 import 'package:sim_interventions/services/auth_service.dart';
 import 'package:sim_interventions/services/sync_service.dart';
+import 'package:sim_interventions/services/token_storage.dart';
 import 'package:sim_interventions/state/interventions_provider.dart';
 
 import '../support/app_test_scope.dart';
@@ -67,17 +68,23 @@ Future<AppDatabase> _dbAvecInterventions(List<InterventionsCompanion> interventi
 
 Widget _app(AppDatabase db) => appTest(home: const MesInterventionsScreen(), db: db);
 
-Widget _appAvecClient(AppDatabase db, MockClient client, {AuthService? authService}) {
+Widget _appAvecClient(
+  AppDatabase db,
+  MockClient client, {
+  AuthService? authService,
+  SyncService? syncService,
+}) {
   return ProviderScope(
     overrides: [
       databaseProvider.overrideWithValue(db),
       syncServiceProvider.overrideWithValue(
-        SyncService(
-          interventionDao: db.interventionDao,
-          photoDao: db.photoDao,
-          apiClient: ApiClient(client: client),
-          tokenStorage: FakeTokenStorage(),
-        ),
+        syncService ??
+            SyncService(
+              interventionDao: db.interventionDao,
+              photoDao: db.photoDao,
+              apiClient: ApiClient(client: client),
+              tokenStorage: FakeTokenStorage(),
+            ),
       ),
       authServiceProvider.overrideWithValue(
         authService ??
@@ -237,6 +244,32 @@ void main() {
 
     await _videLeTimerDeFermeture(tester);
   });
+
+  testWidgets(
+    "affiche l heure de synchro persistee si la synchro d ouverture echoue",
+    (tester) async {
+      final db = await _dbAvecInterventions([]);
+      final stockageSynchro = FakeTokenStorage();
+      await stockageSynchro.ecrire(
+        cleDerniereSynchro,
+        DateTime.now().subtract(const Duration(minutes: 5)).toIso8601String(),
+      );
+      final client = MockClient((request) async => http.Response('{"message":"Erreur"}', 500));
+      final syncService = SyncService(
+        interventionDao: db.interventionDao,
+        photoDao: db.photoDao,
+        apiClient: ApiClient(client: client),
+        tokenStorage: stockageSynchro,
+      );
+
+      await tester.pumpWidget(_appAvecClient(db, client, syncService: syncService));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Synchronisé il y a 5 min'), findsOneWidget);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
 
   testWidgets('affiche le nom du technicien recupere via GET auth/moi', (tester) async {
     final db = await _dbAvecInterventions([]);

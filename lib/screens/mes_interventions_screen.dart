@@ -47,6 +47,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _synchroniser();
       _chargerNomTechnicien();
+      _chargerDerniereSynchroPersistee();
     });
 
     _abonnementConnectivite = Connectivity().onConnectivityChanged.listen(
@@ -62,6 +63,19 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   Future<void> _chargerNomTechnicien() async {
     final nom = await ref.read(authServiceProvider).nomTechnicien();
     if (mounted && nom != null) setState(() => _nomTechnicien = nom);
+  }
+
+  /// Valeur persistee (survit a un redemarrage de l'app), affichee tant que
+  /// la synchro automatique de cette ouverture d'ecran n'a pas encore abouti.
+  /// `_derniereSynchro == null` (verifie a la resolution, pas au lancement)
+  /// evite d'ecraser une synchro fraiche si elle a deja abouti entre-temps :
+  /// la lecture du stockage securise est generalement plus rapide qu'un
+  /// aller-retour reseau, mais rien ne le garantit.
+  Future<void> _chargerDerniereSynchroPersistee() async {
+    final derniere = await ref.read(syncServiceProvider).derniereSynchroReussie();
+    if (mounted && derniere != null && _derniereSynchro == null) {
+      setState(() => _derniereSynchro = derniere);
+    }
   }
 
   /// Etat reel a l'ouverture (le premier evenement du flux onConnectivityChanged
@@ -238,10 +252,10 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     );
   }
 
-  /// US2.1 (dette technique) : nom du technicien (GET /auth/moi, opportuniste,
-  /// absent si jamais recupere) et heure de la derniere synchro reussie
-  /// (push + pull), pas persistee (reinitialisee a chaque ouverture d'ecran,
-  /// qui relance de toute facon une synchro automatique).
+  /// US2.1 : nom du technicien (GET /auth/moi, opportuniste, absent si
+  /// jamais recupere) et heure de la derniere synchro reussie (push + pull),
+  /// persistee (SyncService.derniereSynchroReussie()) pour survivre a un
+  /// redemarrage de l'app.
   Widget _metaSynchro() {
     if (_derniereSynchro == null && _nomTechnicien == null) {
       return const SizedBox.shrink();

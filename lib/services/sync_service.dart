@@ -130,12 +130,23 @@ class SyncService {
   /// les photos, puis re-tire les interventions (fait foi en cas de conflit,
   /// cf. "l'annulation gagne" dans docs/architecture.md). Renvoie le nombre
   /// de conflits de clotures (les echecs de photos sont un cas distinct,
-  /// cf. [pousserPhotos]).
+  /// cf. [pousserPhotos]). Persiste l'heure de succes (voir
+  /// [derniereSynchroReussie]) : un cycle complet sans exception est
+  /// considere reussi meme s'il y a eu des conflits ou des echecs de photos,
+  /// ce sont des cas geres, pas des pannes de synchro.
   Future<int> synchroniser() async {
     final conflits = await pousserInterventions();
     await pousserPhotos();
     await tirerInterventions();
+    await _tokenStorage.ecrire(cleDerniereSynchro, DateTime.now().toIso8601String());
     return conflits;
+  }
+
+  /// Heure de la derniere synchro reussie, persistee (survit a un
+  /// redemarrage de l'app). Null si aucune synchro n'a jamais reussi.
+  Future<DateTime?> derniereSynchroReussie() async {
+    final valeur = await _tokenStorage.lire(cleDerniereSynchro);
+    return valeur == null ? null : DateTime.tryParse(valeur);
   }
 
   InterventionsCompanion _versCompanion(Map<String, dynamic> json) {
