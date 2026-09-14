@@ -198,6 +198,16 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     );
   }
 
+  /// Plus recent de misAJourLe (serveur) et modifieLocalementLe (local, non
+  /// nul uniquement si une saisie/cloture locale n'a pas encore ete
+  /// confirmee) : reflete quand l'intervention a reellement change en
+  /// dernier, contrairement a datePrevue qui ne bouge jamais apres creation.
+  DateTime _derniereActivite(Intervention intervention) {
+    final local = intervention.modifieLocalementLe;
+    if (local == null) return intervention.misAJourLe;
+    return local.isAfter(intervention.misAJourLe) ? local : intervention.misAJourLe;
+  }
+
   Widget _corps(
     List<Intervention> toutes,
     Set<String> idsAvecPhotosEnAttente,
@@ -206,15 +216,22 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     // "Planifiees" reste trie par date prevue croissante (prochaine echeance
     // en premier, source directe de watchAttribuees()) : c'est ce qui rend
     // une nouvelle intervention visible en premiere ligne des sa reception,
-    // demande confirmee par Cedric. "Toutes" et "Realisees" sont inversees
-    // en decroissant (le plus recent en premier, comme un flux d'activite) :
-    // en ordre croissant, une intervention fraichement assignee se
-    // retrouvait derriere tout l'historique realise (dates passees),
-    // invisible sans faire defiler jusqu'en bas.
+    // demande confirmee par Cedric. "Toutes" et "Realisees" sont trie par
+    // derniere activite decroissante (la plus recente en premier, comme un
+    // flux d'activite). Premiere version (simple `.reversed` sur la liste
+    // triee par datePrevue) etait fausse : datePrevue est la date prevue au
+    // depart, jamais mise a jour a la cloture - une intervention fraichement
+    // cloturee mais planifiee a une date ancienne restait invisible derriere
+    // d'autres interventions a datePrevue plus lointaine. `_derniereActivite`
+    // prend le plus recent de misAJourLe (mis a jour par le serveur au pull)
+    // et modifieLocalementLe (mis a jour immediatement a la cloture, avant
+    // meme que la synchro n'ait confirme) : couvre le court instant entre
+    // cloture locale et confirmation serveur.
     final planifiees = toutes
         .where((i) => i.statut == StatutIntervention.planifiee)
         .toList();
-    final toutesRecentDabord = toutes.reversed.toList();
+    final toutesRecentDabord = [...toutes]
+      ..sort((a, b) => _derniereActivite(b).compareTo(_derniereActivite(a)));
     final realisees = toutesRecentDabord
         .where((i) => i.statut == StatutIntervention.realisee)
         .toList();

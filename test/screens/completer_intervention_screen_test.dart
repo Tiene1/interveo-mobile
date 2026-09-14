@@ -383,6 +383,14 @@ void main() {
     final champs = tester.widgetList<TextField>(find.byType(TextField));
     expect(champs.every((c) => c.readOnly), isTrue);
 
+    // Bug reel corrige le 2026-09-14 : ouvrir directement le detail d'une
+    // intervention deja realisee affichait des champs vides (controleurs
+    // jamais initialises depuis la base, l'appel etait garde par
+    // `if (!estCloturee)`) alors que problemeConstate/travauxRealises
+    // etaient bien renseignes.
+    expect(find.text('Climatiseur en panne'), findsOneWidget);
+    expect(find.text('Filtre nettoye'), findsOneWidget);
+
     await _videLeTimerDeFermeture(tester);
   });
 

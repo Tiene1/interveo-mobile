@@ -88,6 +88,15 @@ class _CompleterInterventionScreenState
     await Future.wait(ecritures);
   }
 
+  /// Appelee inconditionnellement a chaque build (par [_controleursInitialises],
+  /// une seule fois par instance d'ecran, meme si l'intervention est deja
+  /// cloturee). Bug reel corrige le 2026-09-14 : l'appel etait auparavant
+  /// garde par `if (!estCloturee)`, donc jamais declenche en ouvrant
+  /// directement le detail d'une intervention deja realisee - les
+  /// controleurs restaient vides (valeur par defaut de TextEditingController)
+  /// alors que problemeConstate/travauxRealises etaient bien en base, et le
+  /// bandeau succes en lecture seule les affiche via ces memes controleurs
+  /// (cf. _corps, _champTexte(controller: _problemeCtrl, ...)).
   void _initialiserControleurs(Intervention data) {
     if (_controleursInitialises) return;
     _controleursInitialises = true;
@@ -197,7 +206,7 @@ class _CompleterInterventionScreenState
               return const Center(child: Text('Intervention introuvable.'));
             }
             final estCloturee = data.statut == StatutIntervention.realisee;
-            if (!estCloturee) _initialiserControleurs(data);
+            _initialiserControleurs(data);
             return Column(
               children: [
                 _appBar(estCloturee),

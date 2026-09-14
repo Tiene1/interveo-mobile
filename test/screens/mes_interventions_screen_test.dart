@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -63,6 +64,8 @@ InterventionsCompanion _intervention({
   required DateTime datePrevue,
   StatutIntervention statut = StatutIntervention.planifiee,
   StatutSync statutSync = StatutSync.confirme,
+  DateTime? misAJourLe,
+  DateTime? modifieLocalementLe,
 }) {
   return InterventionsCompanion.insert(
     idServeur: idServeur,
@@ -74,7 +77,8 @@ InterventionsCompanion _intervention({
     creeParId: 'directeur-1',
     statut: statut,
     creeLe: datePrevue,
-    misAJourLe: datePrevue,
+    misAJourLe: misAJourLe ?? datePrevue,
+    modifieLocalementLe: Value(modifieLocalementLe),
     statutSync: statutSync,
   );
 }
@@ -220,6 +224,77 @@ void main() {
       final positionTot = tester.getTopLeft(find.text('Client Tot')).dy;
       final positionTard = tester.getTopLeft(find.text('Client Tard')).dy;
       expect(positionTard, lessThan(positionTot));
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
+    "l onglet Toutes trie par derniere activite, pas par date prevue "
+    "(bug reel : une premiere version en .reversed sur datePrevue etait fausse)",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        // datePrevue tres future mais jamais touchee recemment (misAJourLe
+        // ancien) : ne doit pas passer devant une intervention recemment
+        // cloturee malgre une datePrevue plus lointaine.
+        _intervention(
+          idServeur: 'i-future-inactif',
+          nomClient: 'Client Futur Inactif',
+          datePrevue: DateTime(2027, 1, 1),
+          misAJourLe: DateTime(2026, 1, 1),
+        ),
+        // Cloturee aujourd'hui alors que sa datePrevue etait ancienne :
+        // reproduit le cas reel Cedric (intervention "Nissi Bat Service").
+        _intervention(
+          idServeur: 'i-recemment-cloturee',
+          nomClient: 'Client Recemment Cloture',
+          datePrevue: DateTime(2026, 1, 5),
+          statut: StatutIntervention.realisee,
+          misAJourLe: DateTime(2026, 9, 14, 17),
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      final positionRecent = tester.getTopLeft(find.text('Client Recemment Cloture')).dy;
+      final positionFutur = tester.getTopLeft(find.text('Client Futur Inactif')).dy;
+      expect(positionRecent, lessThan(positionFutur));
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
+    "l onglet Toutes priorise une cloture locale pas encore confirmee par le serveur",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(
+          idServeur: 'i-synchronisee',
+          nomClient: 'Client Synchronise',
+          datePrevue: DateTime(2026, 9, 1),
+          misAJourLe: DateTime(2026, 9, 10),
+        ),
+        // Cloturee localement il y a peu, pas encore confirmee par le
+        // serveur : misAJourLe reste ancien (jamais pull depuis), seul
+        // modifieLocalementLe reflete la vraie derniere activite.
+        _intervention(
+          idServeur: 'i-locale-fraiche',
+          nomClient: 'Client Cloture Locale',
+          datePrevue: DateTime(2026, 8, 1),
+          statut: StatutIntervention.realisee,
+          statutSync: StatutSync.local,
+          misAJourLe: DateTime(2026, 8, 1),
+          modifieLocalementLe: DateTime(2026, 9, 14, 17),
+        ),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      final positionLocale = tester.getTopLeft(find.text('Client Cloture Locale')).dy;
+      final positionSync = tester.getTopLeft(find.text('Client Synchronise')).dy;
+      expect(positionLocale, lessThan(positionSync));
 
       await _videLeTimerDeFermeture(tester);
     },
