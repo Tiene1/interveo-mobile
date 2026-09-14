@@ -161,6 +161,10 @@ Déclenchée au retour de connectivité, au passage de l'app au premier plan, ou
 ### Navigation
 - Environ 4 écrans : `Navigator` avec `pushReplacement` après la connexion suffit. `go_router` optionnel, à soumettre à Cédric s'il est proposé.
 
+### Typographie — Fraunces implémenté (2026-09-14)
+- Police système par défaut de la Phase III jusqu'à ce ticket (dette notée au ticket 3, splash). Fraunces (titres, `DESIGN-SYSTEM.md`) est maintenant embarquée et appliquée partout où la maquette la prévoit : le monogramme « S » du splash, le titre « Bon retour. » (connexion), « Mes interventions » et l'état vide (Mes interventions), le nom du client (Détail et Compléter intervention), le titre de la modale de clôture. Repéré par recherche systématique de tous les `fontSize` ≥ 22 des écrans (motif Fraunces : `fontWeight.w400`, `letterSpacing` négatif, parfois un span en italique) — les textes italiques de type placeholder/valeur non renseignée restent volontairement en police système (pas des titres).
+- **Fichiers embarqués, pas `google_fonts`** : l'app est offline-first (techniciens sans connexion fiable sur le terrain), un package qui télécharge la police au premier lancement est un mauvais fit. `assets/fonts/Fraunces-Variable.ttf` + `Fraunces-Italic-Variable.ttf` (polices variables, licence OFL, source `google/fonts` sur GitHub — `OFL.txt` inclus), déclarés dans `pubspec.yaml` (`flutter: fonts:`). Une police variable suffit pour toutes les graisses utilisées (400/500/600) via `fontWeight` standard ; les axes optiques `SOFT`/`WONK`/`opsz` de la maquette ne sont pas pilotés explicitement (valeurs par défaut de la police), écart mineur non perceptible pour l'usage terrain.
+
 ---
 
 ## 5. Besoins de packages (validés au fil des tickets)

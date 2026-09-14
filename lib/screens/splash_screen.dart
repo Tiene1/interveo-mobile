@@ -49,6 +49,7 @@ class _SplashScreenState extends State<SplashScreen> {
             Text(
               'S',
               style: TextStyle(
+                fontFamily: 'Fraunces',
                 fontSize: 72,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -2,

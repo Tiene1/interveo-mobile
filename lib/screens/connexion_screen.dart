@@ -174,6 +174,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
     return const Text.rich(
       TextSpan(
         style: TextStyle(
+          fontFamily: 'Fraunces',
           fontSize: 36,
           fontWeight: FontWeight.w400,
           color: inkColor,

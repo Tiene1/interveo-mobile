@@ -347,6 +347,7 @@ class _CompleterInterventionScreenState
           Text(
             data.nomClient,
             style: const TextStyle(
+              fontFamily: 'Fraunces',
               fontSize: 28,
               fontWeight: FontWeight.w400,
               color: inkColor,
@@ -690,6 +691,7 @@ class _ModaleConfirmationCloture extends StatelessWidget {
           const Text(
             "Clôturer cette intervention ?",
             style: TextStyle(
+              fontFamily: 'Fraunces',
               fontSize: 22,
               fontWeight: FontWeight.w400,
               color: inkColor,

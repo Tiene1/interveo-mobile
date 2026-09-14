@@ -220,6 +220,7 @@ class DetailInterventionScreen extends ConsumerWidget {
           Text(
             data.nomClient,
             style: const TextStyle(
+              fontFamily: 'Fraunces',
               fontSize: 32,
               fontWeight: FontWeight.w400,
               color: inkColor,

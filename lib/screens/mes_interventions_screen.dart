@@ -207,6 +207,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
           const Text.rich(
             TextSpan(
               style: TextStyle(
+                fontFamily: 'Fraunces',
                 fontSize: 28,
                 fontWeight: FontWeight.w400,
                 color: inkColor,
@@ -536,6 +537,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
         const Text.rich(
           TextSpan(
             style: TextStyle(
+              fontFamily: 'Fraunces',
               fontSize: 24,
               fontWeight: FontWeight.w400,
               color: inkColor,
