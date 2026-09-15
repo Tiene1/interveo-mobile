@@ -755,6 +755,44 @@ void main() {
     await _videLeTimerDeFermeture(tester);
   });
 
+  testWidgets(
+    "n affiche aucun message quand la synchro echoue avec une SocketException "
+    "(le bandeau Hors ligne suffit, meme si _horsLigne n a pas encore ete mis a jour)",
+    (tester) async {
+      final db = await _dbAvecInterventions([]);
+      final client = MockClient(
+        (request) async => throw Exception(
+          'ClientException with SocketException: Connection failed (OS Error: Network is unreachable, errno = 101)',
+        ),
+      );
+
+      await tester.pumpWidget(_appAvecClient(db, client));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Synchronisation impossible'), findsNothing);
+      expect(find.textContaining('SocketException'), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
+    "n affiche pas de message d erreur de synchro quand le bandeau Hors ligne est deja affiche",
+    (tester) async {
+      connectivite.etatInitial = [ConnectivityResult.none];
+      final db = await _dbAvecInterventions([]);
+      final client = MockClient((request) async => throw Exception('panne reseau'));
+
+      await tester.pumpWidget(_appAvecClient(db, client));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('bandeauHorsLigne')), findsOneWidget);
+      expect(find.textContaining('Synchronisation impossible'), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
   testWidgets('affiche un message quand une photo est en conflit apres la synchro', (tester) async {
     final db = await _dbAvecInterventions([
       _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),

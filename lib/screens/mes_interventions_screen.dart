@@ -133,9 +133,10 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (erreur) {
-      if (mounted) {
+      final message = _messageErreurSynchro(erreur);
+      if (mounted && message != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_messageErreurSynchro(erreur))),
+          SnackBar(content: Text(message)),
         );
       }
     } finally {
@@ -147,9 +148,19 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   /// (code + texte du backend) d'un probleme de connexion, plutot qu'un
   /// message generique "verifiez votre connexion" qui masquait la cause
   /// reelle (ex. bug cote app, fichier photo manquant).
-  String _messageErreurSynchro(Object erreur) {
+  ///
+  /// Null si l'erreur est un simple probleme de connectivite (ex. l'appareil
+  /// vient de passer hors ligne pile pendant la requete, avant meme que
+  /// `_horsLigne` ait ete mis a jour par l'ecouteur de connectivite) : le
+  /// bandeau "Hors ligne" l'annonce deja, un second message technique brut
+  /// (SocketException, errno...) n'apporte rien au technicien et ressemble a
+  /// un plantage alors que c'est un etat normal sur le terrain.
+  String? _messageErreurSynchro(Object erreur) {
     if (erreur is ApiException) {
       return 'Erreur du serveur (${erreur.statusCode}) : ${erreur.message}';
+    }
+    if (_horsLigne || erreur.toString().contains('SocketException')) {
+      return null;
     }
     return 'Synchronisation impossible : $erreur';
   }
