@@ -64,3 +64,16 @@ String categoriePhotoVersServeur(CategoriePhoto categorie) {
       return 'APRES';
   }
 }
+
+/// Metadonnees de photos recues dans GET /sync/interventions (jamais a
+/// l'envoi, cf. [categoriePhotoVersServeur]).
+CategoriePhoto categoriePhotoDepuisServeur(String valeur) {
+  switch (valeur) {
+    case 'AVANT':
+      return CategoriePhoto.avant;
+    case 'APRES':
+      return CategoriePhoto.apres;
+    default:
+      throw ArgumentError('Categorie photo inconnue : $valeur');
+  }
+}

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
@@ -40,6 +41,20 @@ class _CompleterInterventionScreenState
   Timer? _debounceTravaux;
   bool _enregistreRecemment = false;
   late final InterventionDao _interventionDao;
+
+  /// Photos dont le fichier local a ete libere (intervention Realisee, cf.
+  /// SyncService._viderCachePhotosConfirmees) : telechargees automatiquement
+  /// depuis le serveur des l'affichage, mises en cache ici par idServeur
+  /// pour ne pas relancer un telechargement a chaque rebuild (l'ecran en
+  /// declenche beaucoup, ex. a chaque frappe dans les champs de saisie).
+  final Map<String, Future<Uint8List>> _cachePhotosReseau = {};
+
+  Future<Uint8List> _futurePhotoReseau(String idServeur) {
+    return _cachePhotosReseau.putIfAbsent(
+      idServeur,
+      () => ref.read(syncServiceProvider).telechargerPhoto(idServeur),
+    );
+  }
 
   @override
   void initState() {
@@ -539,6 +554,43 @@ class _CompleterInterventionScreenState
     );
   }
 
+  /// Fichier local si present (saisie en cours), sinon telechargement
+  /// automatique depuis le serveur (intervention Realisee, cache local
+  /// libere) : jamais une action manuelle du technicien.
+  Widget _imagePhoto(Photo photo) {
+    if (photo.cheminLocal != null) {
+      return Image.file(
+        File(photo.cheminLocal!),
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) =>
+            const Icon(Icons.image_outlined, color: textWeak),
+      );
+    }
+    return FutureBuilder<Uint8List>(
+      future: _futurePhotoReseau(photo.idServeur!),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Icon(Icons.image_outlined, color: textWeak);
+        }
+        if (!snapshot.hasData) {
+          return const Center(
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+        return Image.memory(
+          snapshot.data!,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) =>
+              const Icon(Icons.image_outlined, color: textWeak),
+        );
+      },
+    );
+  }
+
   Widget _miniaturePhoto(Photo photo, int numero, bool lectureSeule) {
     final etiquette = photo.categorie == CategoriePhoto.avant ? 'AVANT' : 'APRES';
     return Container(
@@ -554,12 +606,7 @@ class _CompleterInterventionScreenState
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.file(
-            File(photo.cheminLocal),
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.image_outlined, color: textWeak),
-          ),
+          _imagePhoto(photo),
           Positioned(
             left: 5,
             bottom: 5,
@@ -655,16 +702,19 @@ class _CompleterInterventionScreenState
       PhotosCompanion.insert(
         interventionIdLocal: widget.idServeur,
         categorie: categorie,
-        cheminLocal: chemin,
+        cheminLocal: Value(chemin),
         statutSync: StatutSync.local,
       ),
     );
   }
 
+  /// Uniquement disponible pendant la saisie (bouton absent en lecture
+  /// seule) : `cheminLocal` est donc toujours renseigne ici, une photo
+  /// affichee en lecture seule (cache libere) n'est jamais supprimable.
   Future<void> _supprimerPhoto(Photo photo) async {
     final dao = ref.read(databaseProvider).photoDao;
     await dao.supprimer(photo.idLocal);
-    await ref.read(photoStockageServiceProvider).supprimerFichier(photo.cheminLocal);
+    await ref.read(photoStockageServiceProvider).supprimerFichier(photo.cheminLocal!);
   }
 
   Widget _barreBas() {

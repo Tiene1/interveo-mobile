@@ -61,7 +61,7 @@ void main() {
     final idLocal = await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.avant,
-      cheminLocal: '/donnees/photo1.jpg',
+      cheminLocal: Value('/donnees/photo1.jpg'),
       statutSync: StatutSync.local,
     ));
 
@@ -77,7 +77,7 @@ void main() {
     final idLocal = await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.apres,
-      cheminLocal: '/donnees/photo2.jpg',
+      cheminLocal: Value('/donnees/photo2.jpg'),
       statutSync: StatutSync.local,
     ));
 
@@ -138,13 +138,13 @@ void main() {
     await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.avant,
-      cheminLocal: '/donnees/locale.jpg',
+      cheminLocal: Value('/donnees/locale.jpg'),
       statutSync: StatutSync.local,
     ));
     await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.apres,
-      cheminLocal: '/donnees/confirmee.jpg',
+      cheminLocal: Value('/donnees/confirmee.jpg'),
       statutSync: StatutSync.confirme,
     ));
 
@@ -158,7 +158,7 @@ void main() {
     final idLocal = await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.avant,
-      cheminLocal: '/donnees/locale.jpg',
+      cheminLocal: Value('/donnees/locale.jpg'),
       statutSync: StatutSync.local,
     ));
 
@@ -174,13 +174,13 @@ void main() {
     await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.avant,
-      cheminLocal: '/donnees/locale.jpg',
+      cheminLocal: Value('/donnees/locale.jpg'),
       statutSync: StatutSync.local,
     ));
     await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.apres,
-      cheminLocal: '/donnees/confirmee.jpg',
+      cheminLocal: Value('/donnees/confirmee.jpg'),
       statutSync: StatutSync.confirme,
     ));
 
@@ -194,7 +194,7 @@ void main() {
     final idLocal = await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.avant,
-      cheminLocal: '/donnees/locale.jpg',
+      cheminLocal: Value('/donnees/locale.jpg'),
       statutSync: StatutSync.local,
     ));
 
@@ -209,14 +209,14 @@ void main() {
     final idLocal = await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.avant,
-      cheminLocal: '/donnees/en-conflit.jpg',
+      cheminLocal: Value('/donnees/en-conflit.jpg'),
       statutSync: StatutSync.local,
     ));
     await db.photoDao.marquerEnConflit(idLocal);
     await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.apres,
-      cheminLocal: '/donnees/locale.jpg',
+      cheminLocal: Value('/donnees/locale.jpg'),
       statutSync: StatutSync.local,
     ));
 
@@ -232,7 +232,7 @@ void main() {
     await db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.avant,
-      cheminLocal: '/donnees/locale.jpg',
+      cheminLocal: Value('/donnees/locale.jpg'),
       statutSync: StatutSync.local,
     ));
 
@@ -242,5 +242,72 @@ void main() {
     final photos = await db.photoDao.watchPourIntervention('i-1').first;
     expect(toutes, isEmpty);
     expect(photos, isEmpty);
+  });
+
+  test('ajouterMetadonnee cree une photo confirmee sans fichier local', () async {
+    await db.interventionDao.upsert(interventionExemple());
+
+    await db.photoDao.ajouterMetadonnee(
+      idServeur: 'p-serveur-1',
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.avant,
+    );
+
+    final photos = await db.photoDao.listerPourIntervention('i-1');
+    expect(photos.single.idServeur, 'p-serveur-1');
+    expect(photos.single.cheminLocal, isNull);
+    expect(photos.single.statutSync, StatutSync.confirme);
+  });
+
+  test('parIdServeur retrouve une photo par son idServeur, null si absente', () async {
+    await db.interventionDao.upsert(interventionExemple());
+    await db.photoDao.ajouterMetadonnee(
+      idServeur: 'p-serveur-1',
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.avant,
+    );
+
+    expect((await db.photoDao.parIdServeur('p-serveur-1'))?.categorie, CategoriePhoto.avant);
+    expect(await db.photoDao.parIdServeur('inconnue'), isNull);
+  });
+
+  test(
+    'cheminsAliberer vide le fichier local des photos confirmees, jamais des photos pas encore confirmees',
+    () async {
+      await db.interventionDao.upsert(interventionExemple());
+      await db.photoDao.ajouter(PhotosCompanion.insert(
+        idServeur: const Value('p-confirmee'),
+        interventionIdLocal: 'i-1',
+        categorie: CategoriePhoto.avant,
+        cheminLocal: Value('/donnees/confirmee.jpg'),
+        statutSync: StatutSync.confirme,
+      ));
+      await db.photoDao.ajouter(PhotosCompanion.insert(
+        interventionIdLocal: 'i-1',
+        categorie: CategoriePhoto.apres,
+        cheminLocal: Value('/donnees/en-cours.jpg'),
+        statutSync: StatutSync.local,
+      ));
+
+      final aLiberer = await db.photoDao.cheminsAliberer('i-1');
+
+      expect(aLiberer, ['/donnees/confirmee.jpg']);
+      final photos = await db.photoDao.listerPourIntervention('i-1');
+      final confirmee = photos.firstWhere((p) => p.idServeur == 'p-confirmee');
+      final enCours = photos.firstWhere((p) => p.statutSync == StatutSync.local);
+      expect(confirmee.cheminLocal, isNull);
+      expect(enCours.cheminLocal, '/donnees/en-cours.jpg');
+    },
+  );
+
+  test('cheminsAliberer renvoie une liste vide si aucune photo confirmee n a de fichier', () async {
+    await db.interventionDao.upsert(interventionExemple());
+    await db.photoDao.ajouterMetadonnee(
+      idServeur: 'p-1',
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.avant,
+    );
+
+    expect(await db.photoDao.cheminsAliberer('i-1'), isEmpty);
   });
 }

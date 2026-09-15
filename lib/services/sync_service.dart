@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:http_parser/http_parser.dart' show MediaType;
@@ -9,6 +10,7 @@ import '../data/dao/photo_dao.dart';
 import '../data/local_db.dart';
 import '../models/enums.dart';
 import 'api_client.dart';
+import 'photo_stockage_service.dart';
 import 'token_storage.dart';
 
 final _typesMimeParExtension = {
@@ -26,13 +28,16 @@ class SyncService {
     required this._photoDao,
     ApiClient? apiClient,
     TokenStorage? tokenStorage,
+    PhotoStockageService? photoStockage,
   })  : _apiClient = apiClient ?? ApiClient(),
-        _tokenStorage = tokenStorage ?? const SecureTokenStorage();
+        _tokenStorage = tokenStorage ?? const SecureTokenStorage(),
+        _photoStockage = photoStockage ?? PhotoStockageService();
 
   final InterventionDao _interventionDao;
   final PhotoDao _photoDao;
   final ApiClient _apiClient;
   final TokenStorage _tokenStorage;
+  final PhotoStockageService _photoStockage;
 
   /// Appelle GET /sync/interventions avec en parametre `depuis`, le dernier
   /// `misAJourLe` connu localement (omis si la base est vide), puis upsert
@@ -46,10 +51,50 @@ class SyncService {
         : '/sync/interventions';
 
     final items = await _apiClient.getListe(chemin, jeton: jeton);
-    for (final item in items) {
-      await _interventionDao.upsert(_versCompanion(item as Map<String, dynamic>));
+    for (final itemBrut in items) {
+      final json = itemBrut as Map<String, dynamic>;
+      final idServeurIntervention = json['id'] as String;
+      await _interventionDao.upsert(_versCompanion(json));
+      await _repeuplerMetadonneesPhotos(idServeurIntervention, json);
+      if (statutInterventionDepuisServeur(json['statut'] as String) ==
+          StatutIntervention.realisee) {
+        await _viderCachePhotosConfirmees(idServeurIntervention);
+      }
     }
     return items.length;
+  }
+
+  /// Recree les lignes de metadonnee (idServeur, categorie, sans fichier)
+  /// des photos que le serveur connait mais que la base locale a perdues
+  /// (ex. deconnexion, US4.3, qui vide interventions/photos locales). Ne
+  /// telecharge jamais le fichier ici : seul l'ecran de detail le fait, a
+  /// l'affichage, pour une intervention deja Realisee.
+  Future<void> _repeuplerMetadonneesPhotos(
+    String interventionIdLocal,
+    Map<String, dynamic> json,
+  ) async {
+    final photosServeur = (json['photos'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
+    for (final photo in photosServeur) {
+      final idServeurPhoto = photo['id'] as String;
+      final dejaConnue = await _photoDao.parIdServeur(idServeurPhoto);
+      if (dejaConnue != null) continue;
+      await _photoDao.ajouterMetadonnee(
+        idServeur: idServeurPhoto,
+        interventionIdLocal: interventionIdLocal,
+        categorie: categoriePhotoDepuisServeur(photo['categorie'] as String),
+      );
+    }
+  }
+
+  /// Libere l'espace disque des photos deja confirmees d'une intervention
+  /// desormais Realisee (fichier local supprime, metadonnee conservee) :
+  /// l'image sera rechargee a la demande depuis le serveur a l'affichage.
+  Future<void> _viderCachePhotosConfirmees(String interventionIdLocal) async {
+    final chemins = await _photoDao.cheminsAliberer(interventionIdLocal);
+    for (final chemin in chemins) {
+      await _photoStockage.supprimerFichier(chemin);
+    }
   }
 
   /// Envoie au serveur les clotures locales (`statutSync = LOCAL`,
@@ -109,12 +154,15 @@ class SyncService {
     final jeton = await _tokenStorage.lire(cleJetonJwt);
     var echecs = 0;
     for (final photo in aPousser) {
+      // listerAPousser() ne renvoie que des photos `local` : jamais creees
+      // sans fichier, cheminLocal est donc toujours renseigne ici.
+      final cheminPhoto = photo.cheminLocal!;
       try {
         final reponse = await _apiClient.postFichier(
           '/interventions/${photo.interventionIdLocal}/photos',
           champFichier: 'fichier',
-          fichier: File(photo.cheminLocal),
-          typeFichier: _typesMimeParExtension[chemin.extension(photo.cheminLocal).toLowerCase()] ??
+          fichier: File(cheminPhoto),
+          typeFichier: _typesMimeParExtension[chemin.extension(cheminPhoto).toLowerCase()] ??
               MediaType('image', 'jpeg'),
           champs: {'categorie': categoriePhotoVersServeur(photo.categorie)},
           jeton: jeton,
@@ -144,6 +192,15 @@ class SyncService {
       conflitsClotures: conflitsClotures,
       photosEnConflit: photosEnConflit,
     );
+  }
+
+  /// Telecharge le contenu binaire d'une photo dont seule la metadonnee est
+  /// connue localement (`cheminLocal` absent). Appele par l'ecran de detail,
+  /// jamais par le pull automatique : chaque image n'est recuperee qu'au
+  /// moment ou le technicien l'affiche reellement.
+  Future<Uint8List> telechargerPhoto(String idServeur) async {
+    final jeton = await _tokenStorage.lire(cleJetonJwt);
+    return _apiClient.getBinaire('/photos/$idServeur', jeton: jeton);
   }
 
   /// Heure de la derniere synchro reussie, persistee (survit a un

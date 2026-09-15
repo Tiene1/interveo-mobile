@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' show MediaType;
@@ -98,6 +99,19 @@ class ApiClient {
     final reponseFlux = await _client.send(requete);
     final reponse = await http.Response.fromStream(reponseFlux);
     return _traiterReponse(reponse);
+  }
+
+  /// Telecharge un fichier binaire (ex. GET /photos/:id) : pas de JSON en
+  /// reponse, contrairement a toutes les autres methodes de ce client.
+  Future<Uint8List> getBinaire(String chemin, {String? jeton}) async {
+    final reponse = await _client.get(
+      Uri.parse('$apiBaseUrl$chemin'),
+      headers: _entetes(jeton),
+    );
+    if (reponse.statusCode < 200 || reponse.statusCode >= 300) {
+      throw ApiException(reponse.statusCode, _messageErreur(reponse.body));
+    }
+    return reponse.bodyBytes;
   }
 
   Map<String, String> _entetes(String? jeton) => {

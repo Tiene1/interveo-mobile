@@ -524,7 +524,7 @@ void main() {
       await db.photoDao.ajouter(PhotosCompanion.insert(
         interventionIdLocal: 'i-1',
         categorie: CategoriePhoto.avant,
-        cheminLocal: '/donnees/test/photo.jpg',
+        cheminLocal: Value('/donnees/test/photo.jpg'),
         statutSync: StatutSync.conflit,
       ));
       await tester.pumpAndSettle();
@@ -577,7 +577,7 @@ void main() {
       await db.photoDao.ajouter(PhotosCompanion.insert(
         interventionIdLocal: 'i-1',
         categorie: CategoriePhoto.avant,
-        cheminLocal: '/donnees/test/photo.jpg',
+        cheminLocal: Value('/donnees/test/photo.jpg'),
         statutSync: StatutSync.local,
       ));
       await tester.pumpAndSettle();
@@ -607,7 +607,7 @@ void main() {
       await db.photoDao.ajouter(PhotosCompanion.insert(
         interventionIdLocal: 'i-1',
         categorie: CategoriePhoto.avant,
-        cheminLocal: '/donnees/test/photo.jpg',
+        cheminLocal: Value('/donnees/test/photo.jpg'),
         statutSync: StatutSync.conflit,
       ));
       await tester.pumpAndSettle();

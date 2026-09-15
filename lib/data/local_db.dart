@@ -51,7 +51,13 @@ class Photos extends Table {
   TextColumn get interventionIdLocal =>
       text().references(Interventions, #idServeur)();
   TextColumn get categorie => textEnum<CategoriePhoto>()();
-  TextColumn get cheminLocal => text()();
+
+  /// Nullable (schemaVersion 3) : une photo confirmee et rattachee a une
+  /// intervention Realisee voit son fichier local supprime pour liberer de
+  /// l'espace (AppDatabase.viderCachePhotosConfirmees) ; seule la metadonnee
+  /// (idServeur, categorie) reste, l'image est alors rechargee a la demande
+  /// depuis le serveur (GET /photos/:id) a l'ouverture du detail.
+  TextColumn get cheminLocal => text().nullable()();
   DateTimeColumn get creeLe => dateTime().withDefault(currentDateAndTime)();
   TextColumn get statutSync => textEnum<StatutSync>()();
 }
@@ -68,13 +74,19 @@ class AppDatabase extends _$AppDatabase {
       : super(executor ?? driftDatabase(name: 'sim_interventions'));
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onUpgrade: (m, from, to) async {
           if (from < 2) {
             await m.addColumn(interventions, interventions.vueLe);
+          }
+          if (from < 3) {
+            // SQLite ne sait pas retirer une contrainte NOT NULL existante :
+            // TableMigration recree la table selon le schema Dart actuel
+            // (cheminLocal nullable) en recopiant les lignes existantes.
+            await m.alterTable(TableMigration(photos));
           }
         },
         beforeOpen: (details) async {

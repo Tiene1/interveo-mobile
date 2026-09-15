@@ -34,6 +34,32 @@ const _interventionJson = '''
 }
 ''';
 
+const _interventionAvecPhotosJson = '''
+{
+  "id": "i-1",
+  "nomClient": "Hotel Ivoire",
+  "adresse": "Boulevard de Marseille, Cocody",
+  "telephone1": "0102030405",
+  "telephone2": null,
+  "geolocalisation": null,
+  "motifSignale": null,
+  "datePrevue": "2026-09-20T09:00:00.000Z",
+  "technicienId": "tech-1",
+  "creeParId": "directeur-1",
+  "typeEquipement": null,
+  "problemeConstate": "Compresseur HS",
+  "travauxRealises": "Remplacement compresseur",
+  "statut": "REALISEE",
+  "dateRealisation": "2026-09-20T15:00:00.000Z",
+  "creeLe": "2026-09-12T00:00:00.000Z",
+  "misAJourLe": "2026-09-20T15:00:00.000Z",
+  "photos": [
+    {"id": "p-serveur-1", "categorie": "AVANT"},
+    {"id": "p-serveur-2", "categorie": "APRES"}
+  ]
+}
+''';
+
 const _interventionAnnuleeJson = '''
 {
   "id": "i-1",
@@ -144,6 +170,91 @@ void main() {
     );
 
     await expectLater(service.tirerInterventions(), throwsA(isA<ApiException>()));
+  });
+
+  test(
+    'tirerInterventions repeuple les metadonnees des photos recues, sans fichier local',
+    () async {
+      final client = MockClient(
+        (request) async => http.Response('[$_interventionAvecPhotosJson]', 200),
+      );
+      final service = SyncService(
+        interventionDao: db.interventionDao,
+        photoDao: db.photoDao,
+        apiClient: ApiClient(client: client),
+        tokenStorage: FakeTokenStorage(),
+      );
+
+      await service.tirerInterventions();
+
+      final photos = await db.photoDao.listerPourIntervention('i-1');
+      expect(photos, hasLength(2));
+      expect(photos.every((p) => p.cheminLocal == null), isTrue);
+      expect(photos.every((p) => p.statutSync == StatutSync.confirme), isTrue);
+      expect(
+        photos.map((p) => p.idServeur).toSet(),
+        {'p-serveur-1', 'p-serveur-2'},
+      );
+    },
+  );
+
+  test(
+    'tirerInterventions ne duplique pas une photo deja connue localement (meme idServeur)',
+    () async {
+      await db.interventionDao.upsert(InterventionsCompanion.insert(
+        idServeur: 'i-1',
+        nomClient: 'Hotel Ivoire',
+        adresse: 'Cocody',
+        telephone1: '0102030405',
+        datePrevue: DateTime(2026, 9, 20, 9),
+        technicienId: 'tech-1',
+        creeParId: 'directeur-1',
+        statut: StatutIntervention.realisee,
+        creeLe: DateTime(2026, 9, 12),
+        misAJourLe: DateTime(2026, 9, 12),
+        statutSync: StatutSync.confirme,
+      ));
+      await db.photoDao.ajouterMetadonnee(
+        idServeur: 'p-serveur-1',
+        interventionIdLocal: 'i-1',
+        categorie: CategoriePhoto.avant,
+      );
+
+      final client = MockClient(
+        (request) async => http.Response('[$_interventionAvecPhotosJson]', 200),
+      );
+      final service = SyncService(
+        interventionDao: db.interventionDao,
+        photoDao: db.photoDao,
+        apiClient: ApiClient(client: client),
+        tokenStorage: FakeTokenStorage(),
+      );
+
+      await service.tirerInterventions();
+
+      final photos = await db.photoDao.listerPourIntervention('i-1');
+      expect(photos, hasLength(2));
+    },
+  );
+
+  test('telechargerPhoto appelle GET /photos/:id et renvoie les bytes', () async {
+    final octets = [1, 2, 3, 4];
+    Uri? urlAppelee;
+    final client = MockClient((request) async {
+      urlAppelee = request.url;
+      return http.Response.bytes(octets, 200);
+    });
+    final service = SyncService(
+      interventionDao: db.interventionDao,
+      photoDao: db.photoDao,
+      apiClient: ApiClient(client: client),
+      tokenStorage: FakeTokenStorage(),
+    );
+
+    final resultat = await service.telechargerPhoto('p-serveur-1');
+
+    expect(urlAppelee?.path, '/photos/p-serveur-1');
+    expect(resultat, octets);
   });
 
   Future<void> seedeClotureLocale(AppDatabase db, {String idServeur = 'i-1'}) {
@@ -297,10 +408,53 @@ void main() {
     return db.photoDao.ajouter(PhotosCompanion.insert(
       interventionIdLocal: 'i-1',
       categorie: CategoriePhoto.avant,
-      cheminLocal: cheminLocal,
+      cheminLocal: Value(cheminLocal),
       statutSync: StatutSync.local,
     ));
   }
+
+  test(
+    'tirerInterventions vide le fichier local des photos confirmees d une intervention desormais Realisee',
+    () async {
+      final fichier = await creerFichierTemp();
+      await db.interventionDao.upsert(InterventionsCompanion.insert(
+        idServeur: 'i-1',
+        nomClient: 'Hotel Ivoire',
+        adresse: 'Cocody',
+        telephone1: '0102030405',
+        datePrevue: DateTime(2026, 9, 20, 9),
+        technicienId: 'tech-1',
+        creeParId: 'directeur-1',
+        statut: StatutIntervention.planifiee,
+        creeLe: DateTime(2026, 9, 12),
+        misAJourLe: DateTime(2026, 9, 12),
+        statutSync: StatutSync.confirme,
+      ));
+      await db.photoDao.ajouter(PhotosCompanion.insert(
+        idServeur: const Value('p-serveur-1'),
+        interventionIdLocal: 'i-1',
+        categorie: CategoriePhoto.avant,
+        cheminLocal: Value(fichier.path),
+        statutSync: StatutSync.confirme,
+      ));
+
+      final client = MockClient(
+        (request) async => http.Response('[$_interventionAvecPhotosJson]', 200),
+      );
+      final service = SyncService(
+        interventionDao: db.interventionDao,
+        photoDao: db.photoDao,
+        apiClient: ApiClient(client: client),
+        tokenStorage: FakeTokenStorage(),
+      );
+
+      await service.tirerInterventions();
+
+      final photo = await db.photoDao.parIdServeur('p-serveur-1');
+      expect(photo!.cheminLocal, isNull);
+      expect(await fichier.exists(), isFalse);
+    },
+  );
 
   test('pousserPhotos n appelle pas le reseau si rien a pousser', () async {
     var appele = false;

@@ -1260,9 +1260,9 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
   late final GeneratedColumn<String> cheminLocal = GeneratedColumn<String>(
     'chemin_local',
     aliasedName,
-    false,
+    true,
     type: DriftSqlType.string,
-    requiredDuringInsert: true,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _creeLeMeta = const VerificationMeta('creeLe');
   @override
@@ -1336,8 +1336,6 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
           _cheminLocalMeta,
         ),
       );
-    } else if (isInserting) {
-      context.missing(_cheminLocalMeta);
     }
     if (data.containsKey('cree_le')) {
       context.handle(
@@ -1375,7 +1373,7 @@ class $PhotosTable extends Photos with TableInfo<$PhotosTable, Photo> {
       cheminLocal: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}chemin_local'],
-      )!,
+      ),
       creeLe: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}cree_le'],
@@ -1407,7 +1405,13 @@ class Photo extends DataClass implements Insertable<Photo> {
   final String? idServeur;
   final String interventionIdLocal;
   final CategoriePhoto categorie;
-  final String cheminLocal;
+
+  /// Nullable (schemaVersion 3) : une photo confirmee et rattachee a une
+  /// intervention Realisee voit son fichier local supprime pour liberer de
+  /// l'espace (AppDatabase.viderCachePhotosConfirmees) ; seule la metadonnee
+  /// (idServeur, categorie) reste, l'image est alors rechargee a la demande
+  /// depuis le serveur (GET /photos/:id) a l'ouverture du detail.
+  final String? cheminLocal;
   final DateTime creeLe;
   final StatutSync statutSync;
   const Photo({
@@ -1415,7 +1419,7 @@ class Photo extends DataClass implements Insertable<Photo> {
     this.idServeur,
     required this.interventionIdLocal,
     required this.categorie,
-    required this.cheminLocal,
+    this.cheminLocal,
     required this.creeLe,
     required this.statutSync,
   });
@@ -1432,7 +1436,9 @@ class Photo extends DataClass implements Insertable<Photo> {
         $PhotosTable.$convertercategorie.toSql(categorie),
       );
     }
-    map['chemin_local'] = Variable<String>(cheminLocal);
+    if (!nullToAbsent || cheminLocal != null) {
+      map['chemin_local'] = Variable<String>(cheminLocal);
+    }
     map['cree_le'] = Variable<DateTime>(creeLe);
     {
       map['statut_sync'] = Variable<String>(
@@ -1450,7 +1456,9 @@ class Photo extends DataClass implements Insertable<Photo> {
           : Value(idServeur),
       interventionIdLocal: Value(interventionIdLocal),
       categorie: Value(categorie),
-      cheminLocal: Value(cheminLocal),
+      cheminLocal: cheminLocal == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cheminLocal),
       creeLe: Value(creeLe),
       statutSync: Value(statutSync),
     );
@@ -1470,7 +1478,7 @@ class Photo extends DataClass implements Insertable<Photo> {
       categorie: $PhotosTable.$convertercategorie.fromJson(
         serializer.fromJson<String>(json['categorie']),
       ),
-      cheminLocal: serializer.fromJson<String>(json['cheminLocal']),
+      cheminLocal: serializer.fromJson<String?>(json['cheminLocal']),
       creeLe: serializer.fromJson<DateTime>(json['creeLe']),
       statutSync: $PhotosTable.$converterstatutSync.fromJson(
         serializer.fromJson<String>(json['statutSync']),
@@ -1487,7 +1495,7 @@ class Photo extends DataClass implements Insertable<Photo> {
       'categorie': serializer.toJson<String>(
         $PhotosTable.$convertercategorie.toJson(categorie),
       ),
-      'cheminLocal': serializer.toJson<String>(cheminLocal),
+      'cheminLocal': serializer.toJson<String?>(cheminLocal),
       'creeLe': serializer.toJson<DateTime>(creeLe),
       'statutSync': serializer.toJson<String>(
         $PhotosTable.$converterstatutSync.toJson(statutSync),
@@ -1500,7 +1508,7 @@ class Photo extends DataClass implements Insertable<Photo> {
     Value<String?> idServeur = const Value.absent(),
     String? interventionIdLocal,
     CategoriePhoto? categorie,
-    String? cheminLocal,
+    Value<String?> cheminLocal = const Value.absent(),
     DateTime? creeLe,
     StatutSync? statutSync,
   }) => Photo(
@@ -1508,7 +1516,7 @@ class Photo extends DataClass implements Insertable<Photo> {
     idServeur: idServeur.present ? idServeur.value : this.idServeur,
     interventionIdLocal: interventionIdLocal ?? this.interventionIdLocal,
     categorie: categorie ?? this.categorie,
-    cheminLocal: cheminLocal ?? this.cheminLocal,
+    cheminLocal: cheminLocal.present ? cheminLocal.value : this.cheminLocal,
     creeLe: creeLe ?? this.creeLe,
     statutSync: statutSync ?? this.statutSync,
   );
@@ -1572,7 +1580,7 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
   final Value<String?> idServeur;
   final Value<String> interventionIdLocal;
   final Value<CategoriePhoto> categorie;
-  final Value<String> cheminLocal;
+  final Value<String?> cheminLocal;
   final Value<DateTime> creeLe;
   final Value<StatutSync> statutSync;
   const PhotosCompanion({
@@ -1589,12 +1597,11 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     this.idServeur = const Value.absent(),
     required String interventionIdLocal,
     required CategoriePhoto categorie,
-    required String cheminLocal,
+    this.cheminLocal = const Value.absent(),
     this.creeLe = const Value.absent(),
     required StatutSync statutSync,
   }) : interventionIdLocal = Value(interventionIdLocal),
        categorie = Value(categorie),
-       cheminLocal = Value(cheminLocal),
        statutSync = Value(statutSync);
   static Insertable<Photo> custom({
     Expression<int>? idLocal,
@@ -1622,7 +1629,7 @@ class PhotosCompanion extends UpdateCompanion<Photo> {
     Value<String?>? idServeur,
     Value<String>? interventionIdLocal,
     Value<CategoriePhoto>? categorie,
-    Value<String>? cheminLocal,
+    Value<String?>? cheminLocal,
     Value<DateTime>? creeLe,
     Value<StatutSync>? statutSync,
   }) {
@@ -2331,7 +2338,7 @@ typedef $$PhotosTableCreateCompanionBuilder = PhotosCompanion Function({
   Value<String?> idServeur,
   required String interventionIdLocal,
   required CategoriePhoto categorie,
-  required String cheminLocal,
+  Value<String?> cheminLocal,
   Value<DateTime> creeLe,
   required StatutSync statutSync,
 });
@@ -2340,7 +2347,7 @@ typedef $$PhotosTableUpdateCompanionBuilder = PhotosCompanion Function({
   Value<String?> idServeur,
   Value<String> interventionIdLocal,
   Value<CategoriePhoto> categorie,
-  Value<String> cheminLocal,
+  Value<String?> cheminLocal,
   Value<DateTime> creeLe,
   Value<StatutSync> statutSync,
 });
@@ -2584,7 +2591,7 @@ class $$PhotosTableTableManager
                 Value<String?> idServeur = const Value.absent(),
                 Value<String> interventionIdLocal = const Value.absent(),
                 Value<CategoriePhoto> categorie = const Value.absent(),
-                Value<String> cheminLocal = const Value.absent(),
+                Value<String?> cheminLocal = const Value.absent(),
                 Value<DateTime> creeLe = const Value.absent(),
                 Value<StatutSync> statutSync = const Value.absent(),
               }) => PhotosCompanion(
@@ -2602,7 +2609,7 @@ class $$PhotosTableTableManager
                 Value<String?> idServeur = const Value.absent(),
                 required String interventionIdLocal,
                 required CategoriePhoto categorie,
-                required String cheminLocal,
+                Value<String?> cheminLocal = const Value.absent(),
                 Value<DateTime> creeLe = const Value.absent(),
                 required StatutSync statutSync,
               }) => PhotosCompanion.insert(

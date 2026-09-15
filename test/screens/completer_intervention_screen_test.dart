@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -102,7 +104,7 @@ Future<int> _ajouterPhoto(
     PhotosCompanion.insert(
       interventionIdLocal: idServeur,
       categorie: categorie,
-      cheminLocal: cheminLocal,
+      cheminLocal: Value(cheminLocal),
       statutSync: StatutSync.local,
     ),
   );
@@ -536,4 +538,39 @@ void main() {
 
     await _videLeTimerDeFermeture(tester);
   });
+
+  testWidgets(
+    'une photo sans fichier local (cache libere) se charge automatiquement depuis le serveur, sans action du technicien',
+    (tester) async {
+      final pngValide = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      );
+      var chemineDemandee = '';
+      final client = MockClient((request) async {
+        chemineDemandee = request.url.path;
+        return http.Response.bytes(pngValide, 200);
+      });
+
+      final db = await _dbAvec(_intervention(
+        problemeConstate: 'Climatiseur en panne',
+        travauxRealises: 'Filtre nettoye',
+        statut: StatutIntervention.realisee,
+        dateRealisation: DateTime(2026, 9, 14, 15, 30),
+      ));
+      await db.photoDao.ajouterMetadonnee(
+        idServeur: 'p-serveur-1',
+        interventionIdLocal: 'i-1',
+        categorie: CategoriePhoto.avant,
+      );
+
+      await tester.pumpWidget(_app(db, client: client));
+      await tester.pumpAndSettle();
+
+      expect(chemineDemandee, '/photos/p-serveur-1');
+      expect(find.byType(Image), findsOneWidget);
+      expect(find.byIcon(Icons.image_outlined), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
 }
