@@ -110,16 +110,29 @@ class ApiClient {
     return reponse.body.isEmpty ? <String, dynamic>{} : jsonDecode(reponse.body) as Map<String, dynamic>;
   }
 
+  /// Le corps d'une reponse d'erreur n'est pas toujours le JSON attendu du
+  /// backend (ex. 404 texte brut d'un proxy, portail captif wifi, mauvais
+  /// hote) : jsonDecode plante alors avec une FormatException qui remontait
+  /// telle quelle jusqu'a l'ecran au lieu d'un message exploitable.
   void _leverSiErreur(http.Response reponse) {
     if (reponse.statusCode >= 200 && reponse.statusCode < 300) return;
 
-    final corps = reponse.body.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(reponse.body) as Map<String, dynamic>;
-    final message = corps['message'];
-    final texte = message is List
-        ? message.join(', ')
-        : (message as String? ?? 'Erreur inconnue');
+    final texte = _messageErreur(reponse.body);
     throw ApiException(reponse.statusCode, texte);
+  }
+
+  String _messageErreur(String corpsBrut) {
+    if (corpsBrut.isEmpty) return 'Erreur inconnue';
+    try {
+      final corps = jsonDecode(corpsBrut) as Map<String, dynamic>;
+      final message = corps['message'];
+      if (message is List) return message.join(', ');
+      return message as String? ?? 'Erreur inconnue';
+    } catch (_) {
+      // Corps non-JSON (FormatException) ou JSON mais pas l'enveloppe
+      // {message: ...} attendue (TypeError de cast) : dans les deux cas, on
+      // retombe sur le texte brut plutot que de laisser planter la synchro.
+      return corpsBrut.length > 100 ? '${corpsBrut.substring(0, 100)}…' : corpsBrut;
+    }
   }
 }

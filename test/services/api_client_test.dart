@@ -63,6 +63,23 @@ void main() {
     );
   });
 
+  test(
+    'post leve une ApiException lisible sur une reponse d erreur non-JSON '
+    '(ex. mauvais hote, portail captif, proxy) au lieu de planter avec une FormatException',
+    () async {
+      final client = MockClient((request) async => http.Response('404 Not Found', 404));
+
+      await expectLater(
+        ApiClient(client: client).post('/auth/login', corps: {}),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 404)
+              .having((e) => e.message, 'message', '404 Not Found'),
+        ),
+      );
+    },
+  );
+
   test('get ajoute l en-tete Authorization quand un jeton est fourni', () async {
     final client = MockClient((request) async {
       expect(request.headers['Authorization'], 'Bearer jwt-fictif');
