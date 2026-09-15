@@ -10,4 +10,7 @@ class FakeTokenStorage implements TokenStorage {
 
   @override
   Future<void> ecrire(String cle, String valeur) async => _valeurs[cle] = valeur;
+
+  @override
+  Future<void> effacer(String cle) async => _valeurs.remove(cle);
 }

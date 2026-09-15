@@ -91,4 +91,15 @@ void main() {
 
     expect(await service.nomTechnicien(), isNull);
   });
+
+  test('deconnecter efface le jeton stocke', () async {
+    final storage = FakeTokenStorage();
+    await storage.ecrire('jwt', 'jwt-fictif');
+    final service = AuthService(apiClient: ApiClient(), storage: storage);
+
+    await service.deconnecter();
+
+    expect(await service.jetonActuel(), isNull);
+    expect(await service.sessionValide(), isFalse);
+  });
 }

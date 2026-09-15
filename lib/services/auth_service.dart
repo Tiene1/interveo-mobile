@@ -1,8 +1,9 @@
 import 'api_client.dart';
 import 'token_storage.dart';
 
-/// Login, stockage securise du JWT, lecture de session au demarrage (US4.2).
-/// Pas de deconnexion ni de changement de mot de passe : hors perimetre MVP.
+/// Login, stockage securise du JWT, lecture de session au demarrage (US4.2),
+/// deconnexion (US4.3, promue le 2026-09-14). Pas de changement de mot de
+/// passe (US4.8) : reste hors perimetre.
 class AuthService {
   AuthService({ApiClient? apiClient, TokenStorage? storage})
       : _apiClient = apiClient ?? ApiClient(),
@@ -23,6 +24,11 @@ class AuthService {
   }
 
   Future<String?> jetonActuel() => _storage.lire(cleJetonJwt);
+
+  /// US4.3 : efface le jeton. La base locale (interventions/photos) est
+  /// videe separement par l'appelant (AppDatabase.viderPourDeconnexion()) :
+  /// AuthService ne connait pas AppDatabase, pas de dependance croisee.
+  Future<void> deconnecter() => _storage.effacer(cleJetonJwt);
 
   /// US4.2 : presence du jeton suffit, y compris hors reseau. Un jeton
   /// expire ou revoque echouera seulement au prochain appel reseau (sync),

@@ -226,4 +226,21 @@ void main() {
     expect(aPousser.map((p) => p.cheminLocal), ['/donnees/locale.jpg']);
     expect(enConflit.map((p) => p.cheminLocal), ['/donnees/en-conflit.jpg']);
   });
+
+  test('viderPourDeconnexion supprime toutes les interventions et photos locales', () async {
+    await db.interventionDao.upsert(interventionExemple());
+    await db.photoDao.ajouter(PhotosCompanion.insert(
+      interventionIdLocal: 'i-1',
+      categorie: CategoriePhoto.avant,
+      cheminLocal: '/donnees/locale.jpg',
+      statutSync: StatutSync.local,
+    ));
+
+    await db.viderPourDeconnexion();
+
+    final toutes = await db.interventionDao.watchToutes().first;
+    final photos = await db.photoDao.watchPourIntervention('i-1').first;
+    expect(toutes, isEmpty);
+    expect(photos, isEmpty);
+  });
 }

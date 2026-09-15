@@ -11,6 +11,7 @@ import '../services/sync_service.dart';
 import '../state/interventions_provider.dart';
 import '../theme/design_tokens.dart';
 import '../utils/date.dart';
+import 'connexion_screen.dart';
 import 'detail_intervention_screen.dart';
 
 enum _Onglet { toutes, planifiees, realisees }
@@ -302,11 +303,84 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
             ),
           ),
           const SizedBox(width: 12),
+          _boutonDeconnexion(),
+          const SizedBox(width: 8),
           _boutonSynchroniser(
             _couleurIndicateurSynchro(toutes, idsAvecPhotosEnAttente, idsAvecPhotosEnConflit),
           ),
         ],
       ),
+    );
+  }
+
+  /// US4.3 (promue le 2026-09-14). Meme gabarit que _boutonSynchroniser
+  /// (boite 36x36, bordure `line`) pour former un seul groupe d'actions
+  /// coherent dans l'en-tete plutot que deux styles de bouton differents
+  /// (constat Cedric le 2026-09-15 : l'icone de sortie denotait a cote du
+  /// bouton de synchro). Modale de confirmation (pas juste un appui direct) :
+  /// la deconnexion vide aussi la base locale
+  /// (AppDatabase.viderPourDeconnexion(), cf. son commentaire), le
+  /// technicien doit savoir qu'il perd le cache local avant de confirmer.
+  Widget _boutonDeconnexion() {
+    return Tooltip(
+      message: 'Se déconnecter',
+      child: InkWell(
+        key: const Key('boutonDeconnexion'),
+        onTap: _demanderDeconnexion,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            border: Border.all(color: line),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Center(
+            child: Icon(Icons.logout, size: 16, color: textSoft),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _demanderDeconnexion() async {
+    final database = ref.read(databaseProvider);
+    final authService = ref.read(authServiceProvider);
+
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: paper,
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: inkColor, width: 2),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        title: const Text('Se déconnecter ?'),
+        content: const Text(
+          "Les interventions et photos deja telechargees sur cet appareil seront effacees. "
+          "Vous les retrouverez a la prochaine connexion, une fois reconnecte.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            key: const Key('boutonConfirmerDeconnexion'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Se déconnecter', style: TextStyle(color: danger)),
+          ),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+
+    await database.viderPourDeconnexion();
+    await authService.deconnecter();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => ConnexionScreen(authService: authService)),
+      (route) => false,
     );
   }
 

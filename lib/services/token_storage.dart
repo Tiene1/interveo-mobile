@@ -14,6 +14,7 @@ const cleDerniereSynchro = 'derniere_synchro';
 abstract class TokenStorage {
   Future<String?> lire(String cle);
   Future<void> ecrire(String cle, String valeur);
+  Future<void> effacer(String cle);
 }
 
 class SecureTokenStorage implements TokenStorage {
@@ -27,4 +28,7 @@ class SecureTokenStorage implements TokenStorage {
   @override
   Future<void> ecrire(String cle, String valeur) =>
       _storage.write(key: cle, value: valeur);
+
+  @override
+  Future<void> effacer(String cle) => _storage.delete(key: cle);
 }

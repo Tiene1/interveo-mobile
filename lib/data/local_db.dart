@@ -81,4 +81,13 @@ class AppDatabase extends _$AppDatabase {
           await customStatement('PRAGMA foreign_keys = ON');
         },
       );
+
+  /// Vide la base locale a la deconnexion : le prochain technicien a se
+  /// connecter sur cet appareil ne doit jamais voir les interventions/photos
+  /// d'un autre (repartira d'une base vide, repeuplee par la prochaine
+  /// synchro). Photos avant Interventions (cle etrangere).
+  Future<void> viderPourDeconnexion() async {
+    await delete(photos).go();
+    await delete(interventions).go();
+  }
 }

@@ -11,6 +11,7 @@ import 'package:http/testing.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:sim_interventions/data/local_db.dart';
 import 'package:sim_interventions/models/enums.dart';
+import 'package:sim_interventions/screens/connexion_screen.dart';
 import 'package:sim_interventions/screens/detail_intervention_screen.dart';
 import 'package:sim_interventions/screens/mes_interventions_screen.dart';
 import 'package:sim_interventions/services/api_client.dart';
@@ -865,6 +866,70 @@ void main() {
 
     await _videLeTimerDeFermeture(tester);
   });
+
+  testWidgets(
+    'confirmer la deconnexion efface le jeton, vide la base locale et mene a l ecran de connexion',
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),
+      ]);
+      final client = MockClient((request) async => http.Response('[]', 200));
+      final storage = FakeTokenStorage();
+      await storage.ecrire('jwt', 'jwt-fictif');
+      final authService = AuthService(apiClient: ApiClient(client: client), storage: storage);
+
+      // runAsync : la fermeture du flux .watch() de l'ancien MesInterventionsScreen
+      // pendant le remplacement complet de la route (pushAndRemoveUntil) implique
+      // une communication reelle avec l'isolate SQLite de Drift, que la zone
+      // FakeAsync des autres testWidgets ne peut pas simuler (elle reste bloquee
+      // indefiniment) ; runAsync bascule tout le scenario sur le vrai event loop.
+      await tester.runAsync(() async {
+        await tester.pumpWidget(_appAvecClient(db, client, authService: authService));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('boutonDeconnexion')));
+        await tester.pumpAndSettle();
+        expect(find.text('Se déconnecter ?'), findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('boutonConfirmerDeconnexion')));
+        await tester.pumpAndSettle();
+
+        expect(await storage.lire('jwt'), isNull);
+        expect(await db.interventionDao.watchToutes().first, isEmpty);
+        expect(find.byType(ConnexionScreen), findsOneWidget);
+
+        await tester.pumpWidget(const SizedBox());
+        await tester.pump(Duration.zero);
+      });
+    },
+  );
+
+  testWidgets(
+    'annuler la deconnexion ne touche ni au jeton ni a la base locale',
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),
+      ]);
+      final client = MockClient((request) async => http.Response('[]', 200));
+      final storage = FakeTokenStorage();
+      await storage.ecrire('jwt', 'jwt-fictif');
+      final authService = AuthService(apiClient: ApiClient(client: client), storage: storage);
+
+      await tester.pumpWidget(_appAvecClient(db, client, authService: authService));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('boutonDeconnexion')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Annuler'));
+      await tester.pumpAndSettle();
+
+      expect(await storage.lire('jwt'), 'jwt-fictif');
+      expect(find.text('Hotel Ivoire'), findsOneWidget);
+      expect(find.byType(ConnexionScreen), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
 
   testWidgets('le bandeau hors ligne apparait et disparait selon les evenements de connectivite', (tester) async {
     final db = await _dbAvecInterventions([]);
