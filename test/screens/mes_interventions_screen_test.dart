@@ -325,6 +325,33 @@ void main() {
   });
 
   testWidgets(
+    "les onglets se partagent toute la largeur de la ligne, a parts egales "
+    "(retour de Cedric le 2026-09-16 : ils restaient tasses a gauche)",
+    (tester) async {
+      final db = await _dbAvecInterventions([
+        _intervention(idServeur: 'i-1', nomClient: 'Hotel Ivoire', datePrevue: DateTime(2026, 9, 12, 9)),
+      ]);
+
+      await tester.pumpWidget(_app(db));
+      await tester.pumpAndSettle();
+
+      final largeurToutes = tester.getSize(find.byKey(const Key('ongletToutes'))).width;
+      final largeurPlanifiees = tester.getSize(find.byKey(const Key('ongletPlanifiees'))).width;
+      final largeurRealisees = tester.getSize(find.byKey(const Key('ongletRealisees'))).width;
+      final largeurEcran = tester.getSize(find.byType(MaterialApp)).width;
+
+      expect(largeurToutes, closeTo(largeurPlanifiees, 0.5));
+      expect(largeurToutes, closeTo(largeurRealisees, 0.5));
+      expect(
+        largeurToutes + largeurPlanifiees + largeurRealisees,
+        closeTo(largeurEcran, 1),
+      );
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
+  testWidgets(
     "affiche NOUVEAU sur une intervention creee il y a moins de 24h",
     (tester) async {
       final db = await _dbAvecInterventions([

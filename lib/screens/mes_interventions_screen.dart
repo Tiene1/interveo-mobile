@@ -556,30 +556,40 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     );
   }
 
+  /// Onglets etires sur toute la largeur de la ligne (Expanded, un tiers
+  /// chacun) : retour de Cedric le 2026-09-16 (grille de recette Nice to
+  /// have), les trois onglets restaient jusque-la tasses a gauche par leur
+  /// largeur intrinseque, laissant un vide a droite.
   Widget _onglets(int nbToutes, int nbPlanifiees, int nbRealisees) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: line)),
       ),
       child: Row(
         children: [
-          _ongletBouton(
-            label: 'Toutes',
-            nombre: nbToutes,
-            valeur: _Onglet.toutes,
+          Expanded(
+            child: _ongletBouton(
+              key: const Key('ongletToutes'),
+              label: 'Toutes',
+              nombre: nbToutes,
+              valeur: _Onglet.toutes,
+            ),
           ),
-          const SizedBox(width: 16),
-          _ongletBouton(
-            label: 'Planifiées',
-            nombre: nbPlanifiees,
-            valeur: _Onglet.planifiees,
+          Expanded(
+            child: _ongletBouton(
+              key: const Key('ongletPlanifiees'),
+              label: 'Planifiées',
+              nombre: nbPlanifiees,
+              valeur: _Onglet.planifiees,
+            ),
           ),
-          const SizedBox(width: 16),
-          _ongletBouton(
-            label: 'Réalisées',
-            nombre: nbRealisees,
-            valeur: _Onglet.realisees,
+          Expanded(
+            child: _ongletBouton(
+              key: const Key('ongletRealisees'),
+              label: 'Réalisées',
+              nombre: nbRealisees,
+              valeur: _Onglet.realisees,
+            ),
           ),
         ],
       ),
@@ -587,12 +597,14 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   }
 
   Widget _ongletBouton({
+    Key? key,
     required String label,
     required int nombre,
     required _Onglet valeur,
   }) {
     final actif = _onglet == valeur;
     return InkWell(
+      key: key,
       onTap: () => setState(() => _onglet = valeur),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -605,6 +617,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
           ),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
               label,
