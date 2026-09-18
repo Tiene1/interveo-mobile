@@ -275,11 +275,11 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   }
 
   /// Reagencement du 2026-09-18 (retour de Cedric) : la ligne du haut
-  /// regroupe le kicker date/heure et le nom du technicien, alignes avec les
-  /// boutons deconnexion/synchro. Le titre est seul sur la ligne suivante,
-  /// et l'indicateur de derniere synchro (ex-_metaSynchro()) passe sur sa
-  /// propre ligne juste en dessous, sans separateur (retour de Cedric le
-  /// meme jour : point supprime, synchro deplacee sous le titre).
+  /// regroupe le bloc kicker date/heure + salutation/nom du technicien
+  /// (empiles sur deux lignes, cf. plus bas), alignes avec les boutons
+  /// deconnexion/synchro. Le titre est seul sur la ligne suivante, et
+  /// l'indicateur de derniere synchro (ex-_metaSynchro()) passe sur sa
+  /// propre ligne juste en dessous, sans separateur.
   Widget _entete(
     List<Intervention> toutes,
     Set<String> idsAvecPhotosEnAttente,
@@ -293,28 +293,21 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
           Row(
             children: [
               Expanded(
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _kickerDateHeure(),
                     if (_nomTechnicien != null) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        width: 3,
-                        height: 3,
-                        decoration: const BoxDecoration(color: textWeak, shape: BoxShape.circle),
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          '${salutation(DateTime.now())}, $_nomTechnicien',
-                          key: const Key('nomTechnicien'),
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: textSoft,
-                            letterSpacing: 0.1,
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${salutation(DateTime.now())}, $_nomTechnicien',
+                        key: const Key('nomTechnicien'),
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: textSoft,
+                          letterSpacing: 0.1,
                         ),
                       ),
                     ],
