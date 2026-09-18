@@ -260,7 +260,6 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     return Column(
       children: [
         _entete(toutes, idsAvecPhotosEnAttente, idsAvecPhotosEnConflit),
-        _metaSynchro(),
         if (_horsLigne) _bandeauHorsLigne(),
         _onglets(toutes.length, planifiees.length, realisees.length),
         Expanded(
@@ -275,6 +274,12 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
     );
   }
 
+  /// Reagencement du 2026-09-18 (retour de Cedric) : la ligne du haut
+  /// regroupe desormais le kicker date/heure et le nom du technicien, alignes
+  /// avec les boutons deconnexion/synchro (jusque-la alignes avec le titre,
+  /// sur une ligne differente du nom du technicien). Le titre et l'indicateur
+  /// de derniere synchro (ex-_metaSynchro(), fusionne ici) passent sur la
+  /// ligne du dessous, ensemble.
   Widget _entete(
     List<Intervention> toutes,
     Set<String> idsAvecPhotosEnAttente,
@@ -282,42 +287,95 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _kickerDateHeure(),
-                const SizedBox(height: 6),
-                const Text.rich(
-                  TextSpan(
-                    style: TextStyle(
-                      fontFamily: 'Fraunces',
-                      fontSize: 28,
-                      fontWeight: FontWeight.w400,
-                      color: inkColor,
-                      letterSpacing: -0.8,
-                    ),
-                    children: [
-                      TextSpan(text: 'Mes '),
-                      TextSpan(
-                        text: 'interventions',
-                        style: TextStyle(fontStyle: FontStyle.italic),
+          Row(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    _kickerDateHeure(),
+                    if (_nomTechnicien != null) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 3,
+                        height: 3,
+                        decoration: const BoxDecoration(color: textWeak, shape: BoxShape.circle),
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          _nomTechnicien!,
+                          key: const Key('nomTechnicien'),
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: textSoft,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
                       ),
                     ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              _boutonDeconnexion(),
+              const SizedBox(width: 8),
+              _boutonSynchroniser(
+                _couleurIndicateurSynchro(toutes, idsAvecPhotosEnAttente, idsAvecPhotosEnConflit),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Text.rich(
+                TextSpan(
+                  style: TextStyle(
+                    fontFamily: 'Fraunces',
+                    fontSize: 28,
+                    fontWeight: FontWeight.w400,
+                    color: inkColor,
+                    letterSpacing: -0.8,
+                  ),
+                  children: [
+                    TextSpan(text: 'Mes '),
+                    TextSpan(
+                      text: 'interventions',
+                      style: TextStyle(fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                ),
+              ),
+              if (_derniereSynchro != null) ...[
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Container(
+                    width: 3,
+                    height: 3,
+                    decoration: const BoxDecoration(color: textWeak, shape: BoxShape.circle),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    _texteDerniereSynchro(_derniereSynchro!),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: textWeak,
+                      letterSpacing: 0.1,
+                    ),
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          _boutonDeconnexion(),
-          const SizedBox(width: 8),
-          _boutonSynchroniser(
-            _couleurIndicateurSynchro(toutes, idsAvecPhotosEnAttente, idsAvecPhotosEnConflit),
+            ],
           ),
         ],
       ),
@@ -474,53 +532,6 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  /// US2.1 : nom du technicien (GET /auth/moi, opportuniste, absent si
-  /// jamais recupere) et heure de la derniere synchro reussie (push + pull),
-  /// persistee (SyncService.derniereSynchroReussie()) pour survivre a un
-  /// redemarrage de l'app.
-  Widget _metaSynchro() {
-    if (_derniereSynchro == null && _nomTechnicien == null) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Row(
-        children: [
-          if (_nomTechnicien != null)
-            Text(
-              _nomTechnicien!,
-              key: const Key('nomTechnicien'),
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: textSoft,
-                letterSpacing: 0.1,
-              ),
-            ),
-          if (_nomTechnicien != null && _derniereSynchro != null) ...[
-            const SizedBox(width: 8),
-            Container(
-              width: 3,
-              height: 3,
-              decoration: const BoxDecoration(color: textWeak, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 8),
-          ],
-          if (_derniereSynchro != null)
-            Text(
-              _texteDerniereSynchro(_derniereSynchro!),
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: textWeak,
-                letterSpacing: 0.1,
-              ),
-            ),
-        ],
       ),
     );
   }

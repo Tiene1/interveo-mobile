@@ -92,6 +92,33 @@ void main() {
     expect(await service.nomTechnicien(), isNull);
   });
 
+  test('nomTechnicien met le nom en cache apres une recuperation reussie', () async {
+    final client = MockClient((request) async {
+      return http.Response('{"nom":"Koffi N\'Guessan"}', 200);
+    });
+    final storage = FakeTokenStorage();
+    await storage.ecrire('jwt', 'jwt-fictif');
+    final service = AuthService(apiClient: ApiClient(client: client), storage: storage);
+
+    await service.nomTechnicien();
+
+    expect(await storage.lire('nom_technicien'), "Koffi N'Guessan");
+  });
+
+  test(
+    'nomTechnicien retombe sur le nom mis en cache si le reseau echoue '
+    '(retour de Cedric le 2026-09-18 : le nom disparaissait hors ligne)',
+    () async {
+      final client = MockClient((request) async => throw Exception('hors ligne'));
+      final storage = FakeTokenStorage();
+      await storage.ecrire('jwt', 'jwt-fictif');
+      await storage.ecrire('nom_technicien', "Koffi N'Guessan");
+      final service = AuthService(apiClient: ApiClient(client: client), storage: storage);
+
+      expect(await service.nomTechnicien(), "Koffi N'Guessan");
+    },
+  );
+
   test('deconnecter efface le jeton stocke', () async {
     final storage = FakeTokenStorage();
     await storage.ecrire('jwt', 'jwt-fictif');

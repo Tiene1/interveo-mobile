@@ -9,6 +9,11 @@ const cleJetonJwt = 'jwt';
 /// plutot que de repartir a zero a chaque ouverture d'ecran.
 const cleDerniereSynchro = 'derniere_synchro';
 
+/// Nom du technicien (GET /auth/moi), mis en cache le 2026-09-18 (retour de
+/// Cedric : le nom disparaissait de l'ecran des que l'appareil etait hors
+/// ligne, faute d'etre jamais persiste).
+const cleNomTechnicien = 'nom_technicien';
+
 /// Abstraction du stockage du jeton : permet de substituer une fausse
 /// implementation en test sans dependance de mock supplementaire.
 abstract class TokenStorage {
