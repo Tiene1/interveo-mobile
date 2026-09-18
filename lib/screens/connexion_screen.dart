@@ -128,7 +128,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
               border: Border(right: BorderSide(color: lineStrong)),
             ),
             child: const Text(
-              'SIM',
+              'Interveo',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,
@@ -139,7 +139,7 @@ class _ConnexionScreenState extends State<ConnexionScreen> {
           ),
           const SizedBox(width: 10),
           const Text(
-            'INTERVENTIONS',
+            'TERRAIN',
             style: TextStyle(
               fontSize: 10,
               fontWeight: FontWeight.w600,

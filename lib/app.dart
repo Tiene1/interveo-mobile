@@ -12,7 +12,7 @@ class SimInterventionsApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SIM Interventions',
+      title: 'Interveo',
       theme: ThemeData(
         scaffoldBackgroundColor: const Color(0xFFFBFBF9), // --paper
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)), // --brand

@@ -1,4 +1,4 @@
-/// URL de base de l'API SIM Interventions.
+/// URL de base de l'API Interveo.
 ///
 /// Sur émulateur Android, `10.0.2.2` pointe vers le localhost de la
 /// machine hôte. Sur un appareil physique (ex. le Xiaomi de test),

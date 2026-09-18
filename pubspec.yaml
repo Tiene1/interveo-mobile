@@ -1,5 +1,5 @@
 name: sim_interventions
-description: "App terrain SIM Interventions - suivi des interventions techniques (offline-first)."
+description: "App terrain Interveo - suivi des interventions techniques (offline-first)."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev

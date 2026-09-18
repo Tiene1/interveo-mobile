@@ -2,7 +2,7 @@
 /// (docs/architecture.md section 4) : lien Google Maps colle tel quel, ou
 /// coordonnees/texte libre transformes en lien "dir" (itineraire, pas simple
 /// recherche : le technicien doit s'y rendre, contrairement au web ou
-/// M. Kouassi consulte seulement).
+/// le directeur consulte seulement).
 String lienItineraire(String geolocalisation) {
   final valeur = geolocalisation.trim();
   if (valeur.startsWith('http://') || valeur.startsWith('https://')) {

@@ -1,6 +1,6 @@
-# CLAUDE.md — Dépôt `mobile/` : app terrain SIM Interventions
+# CLAUDE.md — Dépôt `mobile/` : app terrain Interveo
 
-Règles pour l'agent Claude Code de ce dépôt. Tu écris l'app Flutter des 4 techniciens de SIM, utilisée sur le terrain, hors ligne.
+Règles pour l'agent Claude Code de ce dépôt. Tu écris l'app Flutter des techniciens d'Interveo, utilisée sur le terrain, hors ligne.
 
 ## Sources de vérité
 

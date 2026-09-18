@@ -47,7 +47,7 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'S',
+              'I',
               style: TextStyle(
                 fontFamily: 'Fraunces',
                 fontSize: 72,
@@ -58,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             SizedBox(height: 12),
             Text(
-              'SIM Interventions',
+              'Interveo',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,

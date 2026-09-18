@@ -1,4 +1,4 @@
-# architecture.md — Cible `mobile/` : app terrain SIM Interventions
+# architecture.md — Cible `mobile/` : app terrain Interveo
 
 Structure spécifique au dépôt mobile. La fiche ADR complète et le socle commun sont dans `docs/ADR.md`, qui fait foi. Le contrat d'API est dans `backend/docs/architecture.md`, qui fait foi pour les types. Le référentiel Flutter `C:\Users\TIENE\.claude\references\flutter\FLUTTER_BEST_PRACTICES.md` s'applique strictement.
 
@@ -194,6 +194,17 @@ Retour de Cédric, même session que le réagencement d'en-tête ci-dessus : « 
 
 **Balayage des « autres endroits à dynamiser »** (demande explicite de Cédric) : aucun autre endroit du mobile n'affiche de nom de personne connectée de façon statique — le seul autre endroit candidat identifié était côté web (`AppShell.tsx`, cf. `web/docs/architecture.md`, même date), traité dans le même ticket côté web.
 
+### Renommage du produit : SIM Interventions → Interveo (2026-09-18)
+Avant de préparer le déploiement (GitHub, hébergement gratuit), Cédric a repositionné le projet : plutôt qu'un outil bâti pour un client fictif nommé (SOCIÉTÉ IVOIRE MAINTENANCE, M. Kouassi Bertin), le narratif devient un constat de terrain générique — les PME du bâtiment (électricité, sécurité électronique, domotique...) manquent d'un outil simple de suivi d'interventions. Objectif explicite : rendre le repo présentable dans un portfolio.
+
+**Périmètre décidé avec Cédric avant de commencer** (deux options soumises, choix explicite) :
+- **Visible et contexte uniquement** : `lib/app.dart` (`MaterialApp.title`), `lib/screens/splash_screen.dart` (monogramme `S` → `I`, texte « SIM Interventions » → « Interveo »), `lib/screens/connexion_screen.dart` (bandeau de marque « SIM » → « Interveo », « INTERVENTIONS » → « TERRAIN »), `lib/config/env.dart` (commentaire), `lib/utils/maps.dart` (commentaire), `pubspec.yaml` (`description`, pas `name`), le contexte narratif de `docs/ADR.md`/`docs/architecture.md` (« M. Kouassi » → « le directeur »).
+- **`android/app/src/main/AndroidManifest.xml`** (`android:label`, nom affiché sous l'icône) : touche `android/`, protégé par la règle de confirmation obligatoire de ce `CLAUDE.md` — confirmation déjà obtenue via le choix explicite « visible seulement » (qui inclut ce libellé, distinct de l'`applicationId` technique jamais touché).
+- **Explicitement hors périmètre** : le nom de package Dart (`sim_interventions` dans `pubspec.yaml` et tous les `import 'package:sim_interventions/...'`) et l'`applicationId` Android — identifiants techniques internes, jamais vus par un utilisateur ni un visiteur du repo. Les comptes du seed backend et les fixtures de tests (`Koffi N'Guessan`...) ne sont pas non plus touchés (données fonctionnelles, sans rapport avec le branding).
+- **Noté en dette technique, non traité** : `mobile/design/*.html` et `design/DESIGN-SYSTEM.md` (maquettes statiques historiques de la phase de conception, jamais servies par l'app réelle) mentionnent encore l'ancien nom par endroits — pas mis à jour, hors périmètre de ce ticket.
+
+Tests mis à jour : `test/widget_test.dart` (`'SIM Interventions'` → `'Interveo'`), `test/screens/splash_screen_test.dart` (`find.text('S')` → `find.text('I')`). 147 tests verts au total, `flutter analyze` propre.
+
 ### Références courtes (#0142) retirées de l'affichage — 2026-09-14
 Cédric a demandé le retrait des références courtes (`referenceCourte()`, ex. `#0142`) affichées sur la tuile de `MesInterventionsScreen`, l'en-tête de `DetailInterventionScreen` et celui de `CompleterInterventionScreen` : sans utilité visuelle pour un technicien (il identifie une intervention par le nom du client et la date, jamais par cette référence). Même raisonnement déjà appliqué côté web le 2026-09-12 (colonne « Réf. » retirée du tableau liste, gardée sur le détail à l'époque) — ici le retrait va plus loin, sur les trois écrans mobile. Texte simplement retiré des lignes concernées (pas de remplacement) : la tuile ne garde que le badge de statut de synchro, l'en-tête de Détail ne garde que le bouton retour, l'en-tête de Compléter ne garde que « Compléter »/« Compte rendu ». **`lib/utils/reference.dart` (`referenceCourte()`) n'est plus appelé nulle part dans `lib/`** — laissé en place (jamais de suppression de fichier sans confirmation explicite), à supprimer si Cédric confirme qu'il ne sera pas réutilisé. 111 tests toujours verts (aucun test n'asserait sur ce texte).
 
@@ -286,7 +297,7 @@ Conformément à `FLUTTER_BEST_PRACTICES.md` §7, chaque package fait l'objet d'
 
 ## 6. Hors périmètre mobile pour le MVP
 
-- Créer une intervention depuis le mobile (M. Kouassi crée toutes les interventions).
+- Créer une intervention depuis le mobile (le directeur crée toutes les interventions).
 - Type d'équipement (US2.4) : colonne présente, nullable, pas d'UI de saisie.
 - Consulter ses interventions déjà réalisées (US2.12).
 - Se déconnecter (US4.3), changer son mot de passe (US4.8).

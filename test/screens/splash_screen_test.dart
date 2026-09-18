@@ -27,7 +27,7 @@ void main() {
 
     await tester.pumpWidget(_app(SplashScreen(authService: service)));
 
-    expect(find.text('S'), findsOneWidget);
+    expect(find.text('I'), findsOneWidget);
     expect(find.byType(ConnexionScreen), findsNothing);
 
     await tester.pump(const Duration(seconds: 2));

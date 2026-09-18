@@ -12,7 +12,7 @@ void main() {
 
     await tester.pumpWidget(ProviderScope(child: SimInterventionsApp(authService: service)));
 
-    expect(find.text('SIM Interventions'), findsWidgets);
+    expect(find.text('Interveo'), findsWidgets);
 
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
