@@ -306,7 +306,7 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          _nomTechnicien!,
+                          '${salutation(DateTime.now())}, $_nomTechnicien',
                           key: const Key('nomTechnicien'),
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(

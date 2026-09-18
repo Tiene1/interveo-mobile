@@ -50,3 +50,15 @@ String formatJourDateHeure(DateTime date) {
   final minute = _deuxChiffres(date.minute);
   return '$jour ${date.day} $mois · $heure:$minute';
 }
+
+/// Salutation dynamique selon l'heure (retour de Cedric le 2026-09-18 :
+/// "comme les apps mobiles modernes qui affichent bonjour ou bonsoir"),
+/// utilisee devant le nom du technicien dans l'en-tete de
+/// MesInterventionsScreen. Bornes arbitraires mais conventionnelles.
+String salutation(DateTime date) {
+  final heure = date.hour;
+  if (heure < 5) return 'Bonsoir';
+  if (heure < 12) return 'Bonjour';
+  if (heure < 18) return 'Bon après-midi';
+  return 'Bonsoir';
+}

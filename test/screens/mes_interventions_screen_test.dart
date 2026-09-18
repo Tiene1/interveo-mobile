@@ -719,7 +719,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('nomTechnicien')), findsOneWidget);
-    expect(find.text("Koffi N'Guessan"), findsOneWidget);
+    expect(find.textContaining("Koffi N'Guessan"), findsOneWidget);
 
     await _videLeTimerDeFermeture(tester);
   });
