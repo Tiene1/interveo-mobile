@@ -27,3 +27,6 @@ android/local.properties
 android/key.properties
 *.keystore
 *.jks
+
+# rapports de couverture generes par `flutter test --coverage`
+/coverage/
