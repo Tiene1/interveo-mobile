@@ -23,6 +23,21 @@ class AuthService {
     await _storage.ecrire(cleJetonJwt, reponse['accessToken'] as String);
   }
 
+  /// Reveille le backend sans rien attendre d'utile (2026-09-21) : l'offre
+  /// gratuite de l'hebergeur l'endort apres ~15 min et il met jusqu'a une
+  /// minute a repondre. Appelee au demarrage, pendant que l'ecran de
+  /// demarrage puis de connexion s'affichent, pour que le reveil soit deja
+  /// en cours quand l'utilisateur valide son identifiant. Ne leve jamais :
+  /// hors ligne ou serveur injoignable, c'est sans consequence (best effort).
+  Future<void> reveillerServeur() async {
+    try {
+      await _apiClient.get('/health');
+    } catch (_) {
+      // Sans consequence : ce n'est qu'un reveil opportuniste, la vraie
+      // requete (connexion, synchro) gere ses propres erreurs.
+    }
+  }
+
   Future<String?> jetonActuel() => _storage.lire(cleJetonJwt);
 
   /// US4.3 : efface le jeton. La base locale (interventions/photos) est

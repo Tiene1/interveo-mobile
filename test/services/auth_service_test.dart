@@ -7,6 +7,35 @@ import 'package:sim_interventions/services/auth_service.dart';
 import '../support/fake_token_storage.dart';
 
 void main() {
+  test('reveillerServeur appelle GET /health sans jeton', () async {
+    http.Request? requeteRecue;
+    final client = MockClient((request) async {
+      requeteRecue = request;
+      return http.Response('{"status":"ok"}', 200);
+    });
+    final service = AuthService(apiClient: ApiClient(client: client), storage: FakeTokenStorage());
+
+    await service.reveillerServeur();
+
+    expect(requeteRecue?.method, 'GET');
+    expect(requeteRecue?.url.path, '/health');
+    expect(requeteRecue?.headers.containsKey('Authorization'), isFalse);
+  });
+
+  test('reveillerServeur ne leve jamais, meme hors ligne ou sur une erreur serveur', () async {
+    final horsLigne = AuthService(
+      apiClient: ApiClient(client: MockClient((request) async => throw Exception('hors ligne'))),
+      storage: FakeTokenStorage(),
+    );
+    final erreurServeur = AuthService(
+      apiClient: ApiClient(client: MockClient((request) async => http.Response('{}', 503))),
+      storage: FakeTokenStorage(),
+    );
+
+    await expectLater(horsLigne.reveillerServeur(), completes);
+    await expectLater(erreurServeur.reveillerServeur(), completes);
+  });
+
   test('connecter stocke le jeton recu du backend', () async {
     final client = MockClient((request) async {
       return http.Response('{"accessToken":"jwt-fictif"}', 200);
