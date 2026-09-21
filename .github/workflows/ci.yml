@@ -1,0 +1,41 @@
+name: CI
+
+# Verifie chaque push et chaque pull request : analyse statique et tests. Ne
+# construit ni ne publie d'APK : la distribution passe par une Release GitHub
+# faite a la main (cf. README.md).
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Action tierce : epinglee sur le commit exact (v2.23.0), pas sur une
+      # etiquette deplacable.
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: 3.47.4
+          channel: stable
+          cache: true
+
+      - name: Installer les dependances
+        run: flutter pub get
+
+      - name: Analyse statique
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
