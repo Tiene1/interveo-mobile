@@ -1,5 +1,7 @@
 # App terrain Interveo
 
+![CI](https://github.com/Tiene1/interveo-mobile/actions/workflows/ci.yml/badge.svg)
+
 Application Flutter des techniciens d'Interveo : consultation des interventions attribuées, complément du compte rendu (problème constaté, travaux réalisés, photos avant/après), clôture — entièrement hors ligne, synchronisation automatique au retour du réseau.
 
 - Stack : Flutter, Android en priorité.
