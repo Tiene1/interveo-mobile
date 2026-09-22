@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
@@ -602,5 +603,109 @@ void main() {
     );
 
     await expectLater(service.pousserPhotos(), throwsA(isA<ApiException>()));
+  });
+
+  group('tirerInterventions protege la saisie locale en cours (bug reel du 2026-09-22)', () {
+    Future<void> seedeSaisieEnCours(AppDatabase db) async {
+      final maintenant = DateTime(2026, 9, 22, 9);
+      await db.interventionDao.upsert(InterventionsCompanion.insert(
+        idServeur: 'i-1',
+        nomClient: 'Hotel Ivoire',
+        adresse: 'Cocody',
+        telephone1: '0102030405',
+        datePrevue: maintenant,
+        technicienId: 'tech-1',
+        creeParId: 'directeur-1',
+        statut: StatutIntervention.planifiee,
+        statutSync: StatutSync.confirme,
+        creeLe: maintenant,
+        misAJourLe: maintenant,
+      ));
+      // Simule la saisie du technicien : mettreAJourSaisie() est ce qu'appelle
+      // reellement l'ecran de completion (onChange/flush), pas un upsert direct.
+      await db.interventionDao.mettreAJourSaisie(
+        'i-1',
+        problemeConstate: const Value('Compresseur HS'),
+        travauxRealises: const Value('Diagnostic en cours'),
+      );
+    }
+
+    test(
+      'un pull pendant la saisie n efface pas le texte deja tape (statut encore PLANIFIEE)',
+      () async {
+        await seedeSaisieEnCours(db);
+        // Le serveur renvoie l'etat d'AVANT la saisie (toujours PLANIFIEE,
+        // champs nuls) : c'est exactement ce que renverrait un pull declenche
+        // avant que le technicien n'ait termine de completer l'intervention.
+        final client = MockClient((request) async => http.Response('[$_interventionJson]', 200));
+        final service = SyncService(
+          interventionDao: db.interventionDao,
+          photoDao: db.photoDao,
+          apiClient: ApiClient(client: client),
+          tokenStorage: FakeTokenStorage(),
+        );
+
+        await service.tirerInterventions();
+
+        final intervention = await db.interventionDao.parId('i-1');
+        expect(intervention!.problemeConstate, 'Compresseur HS');
+        expect(intervention.travauxRealises, 'Diagnostic en cours');
+        expect(intervention.statutSync, StatutSync.local);
+      },
+    );
+
+    test(
+      'sans le correctif, le pull efface bien le texte tape : confirme que le test precedent teste le bon bug',
+      () async {
+        await seedeSaisieEnCours(db);
+        // Reproduit exactement ce que fait _versCompanion() sur la reponse du
+        // serveur (Value(null) explicite, pas Value.absent()) : c'est ce qui
+        // rend le champ "present dans le SET de l'upsert", donc ecrasable -
+        // au contraire d'un champ simplement omis. Bypass volontaire du
+        // correctif de tirerInterventions() (appel direct au DAO), pour
+        // prouver que le mecanisme repose bien sur Drift/insertOnConflictUpdate
+        // et non sur un artefact du test precedent.
+        final json = jsonDecode(_interventionJson) as Map<String, dynamic>;
+        await db.interventionDao.upsert(InterventionsCompanion.insert(
+          idServeur: json['id'] as String,
+          nomClient: json['nomClient'] as String,
+          adresse: json['adresse'] as String,
+          telephone1: json['telephone1'] as String,
+          problemeConstate: Value(json['problemeConstate'] as String?),
+          travauxRealises: Value(json['travauxRealises'] as String?),
+          datePrevue: DateTime.parse(json['datePrevue'] as String),
+          technicienId: json['technicienId'] as String,
+          creeParId: json['creeParId'] as String,
+          statut: StatutIntervention.planifiee,
+          creeLe: DateTime.parse(json['creeLe'] as String),
+          misAJourLe: DateTime.parse(json['misAJourLe'] as String),
+          statutSync: StatutSync.confirme,
+        ));
+
+        final intervention = await db.interventionDao.parId('i-1');
+        expect(intervention!.problemeConstate, isNull,
+            reason: 'l upsert inconditionnel efface bien le texte : c est le bug reel');
+      },
+    );
+
+    test(
+      'une cloture deja tentee (LOCAL + REALISEE) reste ecrasable par le pull (conflit, comportement inchange)',
+      () async {
+        await seedeClotureLocale(db);
+        final client = MockClient((request) async => http.Response('[$_interventionAnnuleeJson]', 200));
+        final service = SyncService(
+          interventionDao: db.interventionDao,
+          photoDao: db.photoDao,
+          apiClient: ApiClient(client: client),
+          tokenStorage: FakeTokenStorage(),
+        );
+
+        await service.tirerInterventions();
+
+        final intervention = await db.interventionDao.parId('i-1');
+        expect(intervention!.statut, StatutIntervention.annulee);
+        expect(intervention.statutSync, StatutSync.confirme);
+      },
+    );
   });
 }

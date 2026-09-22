@@ -157,6 +157,16 @@ class _MesInterventionsScreenState extends ConsumerState<MesInterventionsScreen>
   /// un plantage alors que c'est un etat normal sur le terrain.
   String? _messageErreurSynchro(Object erreur) {
     if (erreur is ApiException) {
+      // Un 400 est une erreur de validation cote backend (class-validator) :
+      // le detail brut ("problemeConstate should not be empty...") est en
+      // anglais, cite des noms de champs internes, et ne dit rien d'utile ni
+      // d'actionnable au technicien sur le terrain (retour de Cedric le
+      // 2026-09-22, cas reel). Les autres codes (403, 404, 409, 500...)
+      // gardent le message du backend : ce sont des phrases deja redigees en
+      // francais pour l'utilisateur (ex. ForbiddenException, NotFoundException).
+      if (erreur.statusCode == 400) {
+        return 'Erreur du serveur (400) : une information obligatoire est manquante ou invalide. Contactez votre responsable si le problème persiste.';
+      }
       return 'Erreur du serveur (${erreur.statusCode}) : ${erreur.message}';
     }
     if (_horsLigne || erreur.toString().contains('SocketException')) {

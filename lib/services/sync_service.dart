@@ -43,6 +43,28 @@ class SyncService {
   /// `misAJourLe` connu localement (omis si la base est vide), puis upsert
   /// chaque intervention recue. Renvoie le nombre d'interventions recues
   /// (0 si rien de nouveau).
+  ///
+  /// Protege la saisie locale en cours (`statutSync = LOCAL`, encore
+  /// PLANIFIEE : cf. InterventionDao.listerAPousser, aucun endpoint de
+  /// sauvegarde partielle n'existe cote serveur, ce cas n'est donc **jamais**
+  /// pousse) : ce pull n'ecrase pas la ligne. Bug reel du 2026-09-22 (retour
+  /// de Cedric) : sur une connexion lente, un pull declenche pendant que le
+  /// technicien remplissait "Probleme constate"/"Travaux realises" arrivait
+  /// APRES l'ecriture locale (debounce 400 ms) mais reste base sur l'etat
+  /// serveur d'AVANT sa saisie (toujours PLANIFIEE, ces deux champs encore
+  /// nuls) : l'upsert (`insertOnConflictUpdate`, remplace toute la ligne)
+  /// effacait silencieusement le texte deja saisi en base. L'ecran restait
+  /// correct a l'affichage (le controleur de texte n'est initialise qu'une
+  /// fois, cf. `_initialiserControleurs`), donc rien ne le signalait avant la
+  /// cloture : `cloturer()` ne touche pas ces deux colonnes, la ligne finale
+  /// partait en synchro avec `statut = REALISEE` mais les champs vides,
+  /// rejetee en boucle par le backend (400, `problemeConstate`/
+  /// `travauxRealises` obligatoires) a chaque nouvelle tentative de synchro.
+  ///
+  /// Une cloture deja tentee (LOCAL + REALISEE) reste volontairement
+  /// ecrasable par ce pull : c'est le mecanisme existant de resolution de
+  /// conflit ("l'annulation gagne", cf. pousserInterventions), pas concerne
+  /// par ce correctif.
   Future<int> tirerInterventions() async {
     final jeton = await _tokenStorage.lire(cleJetonJwt);
     final depuis = await _interventionDao.derniereMiseAJour();
@@ -54,7 +76,13 @@ class SyncService {
     for (final itemBrut in items) {
       final json = itemBrut as Map<String, dynamic>;
       final idServeurIntervention = json['id'] as String;
-      await _interventionDao.upsert(_versCompanion(json));
+      final existante = await _interventionDao.parId(idServeurIntervention);
+      final saisieLocaleEnCours = existante != null &&
+          existante.statutSync == StatutSync.local &&
+          existante.statut == StatutIntervention.planifiee;
+      if (!saisieLocaleEnCours) {
+        await _interventionDao.upsert(_versCompanion(json));
+      }
       await _repeuplerMetadonneesPhotos(idServeurIntervention, json);
       if (statutInterventionDepuisServeur(json['statut'] as String) ==
           StatutIntervention.realisee) {

@@ -767,6 +767,29 @@ void main() {
     await _videLeTimerDeFermeture(tester);
   });
 
+  testWidgets(
+    'affiche un message generique (pas le detail technique brut) sur une erreur de validation 400',
+    (tester) async {
+      final db = await _dbAvecInterventions([]);
+      final client = MockClient(
+        (request) async => http.Response(
+          '{"message":["problemeConstate should not be empty","problemeConstate must be a string",'
+          '"travauxRealises should not be empty","travauxRealises must be a string"]}',
+          400,
+        ),
+      );
+
+      await tester.pumpWidget(_appAvecClient(db, client));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('information obligatoire'), findsOneWidget);
+      expect(find.textContaining('problemeConstate'), findsNothing);
+      expect(find.textContaining('should not be empty'), findsNothing);
+
+      await _videLeTimerDeFermeture(tester);
+    },
+  );
+
   testWidgets('affiche un message generique pour une erreur inattendue', (tester) async {
     final db = await _dbAvecInterventions([]);
     final client = MockClient((request) async => throw Exception('panne reseau'));
