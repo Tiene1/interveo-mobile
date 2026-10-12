@@ -45,3 +45,7 @@ L'APK n'est pas dans le dépôt (le dossier `build/` est ignoré) : il est distr
 4. Sur le téléphone : ouvrir la page **Releases** du dépôt (connecté à GitHub, le dépôt étant privé), télécharger l'APK et l'ouvrir. Android propose « Mettre à jour » et **conserve les données** de l'app.
 
 Point d'attention : une mise à jour n'est acceptée que si l'APK est signé avec la **même clé** que celui déjà installé. La signature actuelle est la clé de debug de la machine de build (`~/.android/debug.keystore`) : builder toujours depuis le même poste, ou passer à un keystore dédié (jamais versionné) avant de changer de machine.
+
+## Licence
+
+Licence MIT — voir [LICENSE](LICENSE).
